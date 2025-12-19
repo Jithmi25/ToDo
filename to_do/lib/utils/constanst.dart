@@ -7,8 +7,8 @@ import '../utils/strings.dart';
 import '../../main.dart';
 
 /// Empty Title & Subtite TextFields Warning
-emptyFieldsWarning(context) {
-  return FToast.toast(
+void emptyFieldsWarning(BuildContext context) {
+  FToast.toast(
     context,
     msg: MyString.oopsMsg,
     subMsg: "You must fill all Fields!",
@@ -19,8 +19,8 @@ emptyFieldsWarning(context) {
 }
 
 /// Nothing Enter When user try to edit the current tesk
-nothingEnterOnUpdateTaskMode(context) {
-  return FToast.toast(
+void nothingEnterOnUpdateTaskMode(BuildContext context) {
+  FToast.toast(
     context,
     msg: MyString.oopsMsg,
     subMsg: "You must edit the tasks then try to update it!",

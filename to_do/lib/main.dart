@@ -53,7 +53,7 @@ Future<void> _cleanupOldTasks(Box<Task> box) async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -103,8 +103,7 @@ class MyApp extends StatelessWidget {
 
 /// BaseWidget to provide dataStore throughout the app
 class BaseWidget extends InheritedWidget {
-  const BaseWidget({super.key, required super.child})
-    : _dataStore = HiveDataStore();
+  BaseWidget({super.key, required super.child}) : _dataStore = HiveDataStore();
 
   final HiveDataStore _dataStore;
 

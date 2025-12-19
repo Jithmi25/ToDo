@@ -17,7 +17,7 @@ import '../../view/tasks/task_view.dart';
 import '../../utils/strings.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({Key? key}) : super(key: key);
+  const HomeView({super.key});
 
   @override
   // ignore: library_private_types_in_public_api
@@ -202,10 +202,10 @@ class _HomeViewState extends State<HomeView> {
 
 /// My Drawer Slider
 class MySlider extends StatelessWidget {
-  MySlider({Key? key}) : super(key: key);
+  const MySlider({super.key});
 
   /// Icons
-  List<IconData> icons = [
+  static const List<IconData> icons = [
     CupertinoIcons.home,
     CupertinoIcons.person_fill,
     CupertinoIcons.settings,
@@ -213,7 +213,7 @@ class MySlider extends StatelessWidget {
   ];
 
   /// Texts
-  List<String> texts = ["Home", "Profile", "Settings", "Details"];
+  static const List<String> texts = ["Home", "Profile", "Settings", "Details"];
 
   @override
   Widget build(BuildContext context) {
@@ -273,7 +273,7 @@ class MySlider extends StatelessWidget {
 
 /// My App Bar
 class MyAppBar extends StatefulWidget implements PreferredSizeWidget {
-  MyAppBar({Key? key, required this.drawerKey}) : super(key: key);
+  MyAppBar({super.key, required this.drawerKey});
   GlobalKey<SliderDrawerState> drawerKey;
 
   @override
@@ -366,7 +366,7 @@ class _MyAppBarState extends State<MyAppBar>
 
 /// Floating Action Button
 class FAB extends StatelessWidget {
-  const FAB({Key? key}) : super(key: key);
+  const FAB({super.key});
 
   @override
   Widget build(BuildContext context) {
