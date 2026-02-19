@@ -87,111 +87,212 @@ class _HomeViewState extends State<HomeView> {
   }
 
   /// Main Body
-  SizedBox _buildBody(List<Task> tasks, BaseWidget base, TextTheme textTheme) {
-    return SizedBox(
-      width: double.infinity,
-      height: double.infinity,
+  Widget _buildBody(List<Task> tasks, BaseWidget base, TextTheme textTheme) {
+    return SafeArea(
       child: Column(
         children: [
-          /// Top Section Of Home page : Text, Progrss Indicator
+          /// Top Section Of Home page : Text, Progress Indicator
           Container(
-            margin: const EdgeInsets.fromLTRB(55, 0, 0, 0),
-            width: double.infinity,
-            height: 100,
+            margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: MyColors.primaryGradientColor,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: MyColors.primaryColor.withValues(alpha: 0.2),
+                  blurRadius: 15,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                /// CircularProgressIndicator
+                /// Larger CircularProgressIndicator
                 SizedBox(
-                  width: 25,
-                  height: 25,
-                  child: CircularProgressIndicator(
-                    valueColor: const AlwaysStoppedAnimation(
-                      MyColors.primaryColor,
-                    ),
-                    backgroundColor: Colors.grey,
-                    value: checkDoneTask(tasks) / valueOfTheIndicator(tasks),
+                  width: 70,
+                  height: 70,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor: const AlwaysStoppedAnimation(Colors.white),
+                        backgroundColor: Colors.white.withValues(alpha: 0.3),
+                        strokeWidth: 5,
+                        value:
+                            checkDoneTask(tasks) / valueOfTheIndicator(tasks),
+                      ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "${checkDoneTask(tasks)}",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            "of ${tasks.length}",
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.8),
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 25),
+                const SizedBox(width: 20),
 
-                /// Texts
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(MyString.mainTitle, style: textTheme.displayLarge),
-                    const SizedBox(height: 3),
-                    Text(
-                      "${checkDoneTask(tasks)} of ${tasks.length} task",
-                      style: textTheme.titleMedium,
-                    ),
-                  ],
+                /// Texts with better visual hierarchy
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        MyString.mainTitle,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        tasks.isEmpty
+                            ? "All tasks completed! 🎉"
+                            : checkDoneTask(tasks) == tasks.length
+                            ? "Great job! Keep it up! 🚀"
+                            : "${tasks.length - checkDoneTask(tasks)} task${tasks.length - checkDoneTask(tasks) == 1 ? '' : 's'} remaining",
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
 
-          /// Divider
-          const Padding(
-            padding: EdgeInsets.only(top: 10),
-            child: Divider(thickness: 2, indent: 100),
-          ),
-
-          /// Bottom ListView : Tasks
-          SizedBox(
-            width: double.infinity,
-            height: 585,
+          /// Tasks List or Empty State
+          Expanded(
             child: tasks.isNotEmpty
                 ? ListView.builder(
                     physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.only(top: 16, bottom: 80),
                     itemCount: tasks.length,
                     itemBuilder: (BuildContext context, int index) {
                       var task = tasks[index];
 
                       return Dismissible(
                         direction: DismissDirection.horizontal,
-                        background: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.delete_outline, color: Colors.grey),
-                            SizedBox(width: 8),
-                            Text(
-                              MyString.deletedTask,
-                              style: TextStyle(color: Colors.grey),
+                        background: Container(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.red.withValues(alpha: 0.4),
                             ),
-                          ],
+                          ),
+                          alignment: Alignment.center,
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.delete_outline,
+                                color: Colors.red,
+                                size: 24,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                MyString.deletedTask,
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         onDismissed: (direction) {
                           base.dataStore.dalateTask(task: task);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Task deleted'),
+                              duration: const Duration(seconds: 2),
+                              backgroundColor: Colors.red.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                          );
                         },
                         key: Key(task.id),
                         child: TaskWidget(task: tasks[index]),
                       );
                     },
                   )
-                /// if All Tasks Done Show this Widgets
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      /// Lottie
-                      FadeIn(
-                        child: SizedBox(
-                          width: 200,
-                          height: 200,
-                          child: Lottie.asset(
-                            lottieURL,
-                            animate: tasks.isNotEmpty ? false : true,
+                :
+                  /// Empty State with improved design
+                  Center(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          /// Lottie animation
+                          FadeIn(
+                            child: SizedBox(
+                              width: 200,
+                              height: 200,
+                              child: Lottie.asset(
+                                lottieURL,
+                                animate: tasks.isNotEmpty ? false : true,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                          const SizedBox(height: 24),
 
-                      /// Bottom Texts
-                      FadeInUp(
-                        from: 30,
-                        child: const Text(MyString.doneAllTask),
+                          /// Celebration text
+                          FadeInUp(
+                            from: 30,
+                            child: Column(
+                              children: [
+                                const Text(
+                                  MyString.doneAllTask,
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Time to add new tasks or take a break! ☕",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
           ),
         ],
@@ -219,7 +320,7 @@ class MySlider extends StatelessWidget {
   Widget build(BuildContext context) {
     var textTheme = Theme.of(context).textTheme;
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 90),
+      padding: const EdgeInsets.symmetric(vertical: 60),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: MyColors.primaryGradientColor,
@@ -229,35 +330,97 @@ class MySlider extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const CircleAvatar(
-            radius: 50,
-            child: Icon(
-              CupertinoIcons.person_fill,
-              size: 48,
-              color: Colors.white,
+          /// Profile Avatar with shadow
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.white,
+              child: Icon(
+                CupertinoIcons.person_fill,
+                size: 48,
+                color: MyColors.primaryColor,
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text("AmirHossein Bayat", style: textTheme.displayMedium),
-          Text("junior flutter dev", style: textTheme.displaySmall),
+          const SizedBox(height: 16),
+
+          /// User info with better styling
+          Text(
+            "AmirHossein Bayat",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            "junior flutter dev",
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.8),
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+
+          /// Menu items
           Container(
-            margin: const EdgeInsets.symmetric(vertical: 30, horizontal: 10),
+            margin: const EdgeInsets.symmetric(vertical: 40, horizontal: 10),
             width: double.infinity,
-            height: 300,
             child: ListView.builder(
               itemCount: icons.length,
+              shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemBuilder: (ctx, i) {
-                return InkWell(
-                  // ignore: avoid_print
-                  onTap: () => print("$i Selected"),
-                  child: Container(
-                    margin: const EdgeInsets.all(5),
-                    child: ListTile(
-                      leading: Icon(icons[i], color: Colors.white, size: 30),
-                      title: Text(
-                        texts[i],
-                        style: const TextStyle(color: Colors.white),
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => print("$i Selected"),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              icons[i],
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Text(
+                            texts[i],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -280,7 +443,7 @@ class MyAppBar extends StatefulWidget implements PreferredSizeWidget {
   State<MyAppBar> createState() => _MyAppBarState();
 
   @override
-  Size get preferredSize => const Size.fromHeight(100);
+  Size get preferredSize => const Size.fromHeight(80);
 }
 
 class _MyAppBarState extends State<MyAppBar>
@@ -321,43 +484,78 @@ class _MyAppBarState extends State<MyAppBar>
   @override
   Widget build(BuildContext context) {
     var base = BaseWidget.of(context).dataStore.box;
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      height: 132,
-      child: Padding(
-        padding: const EdgeInsets.only(top: 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            /// Animated Icon - Menu & Close
-            Padding(
-              padding: const EdgeInsets.only(left: 20),
-              child: IconButton(
-                splashColor: Colors.transparent,
-                highlightColor: Colors.transparent,
-                icon: AnimatedIcon(
-                  icon: AnimatedIcons.menu_close,
-                  progress: controller,
-                  size: 40,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        height: 80,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              /// Animated Icon - Menu & Close
+              Material(
+                color: Colors.transparent,
+                child: Tooltip(
+                  message: 'Menu',
+                  child: IconButton(
+                    splashColor: MyColors.primaryColor.withValues(alpha: 0.2),
+                    highlightColor: Colors.transparent,
+                    icon: AnimatedIcon(
+                      icon: AnimatedIcons.menu_close,
+                      progress: controller,
+                      size: 28,
+                      color: MyColors.primaryColor,
+                    ),
+                    onPressed: toggle,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 48,
+                      minHeight: 48,
+                    ),
+                  ),
                 ),
-                onPressed: toggle,
               ),
-            ),
 
-            /// Delete Icon
-            Padding(
-              padding: const EdgeInsets.only(right: 20),
-              child: GestureDetector(
-                onTap: () {
-                  base.isEmpty
-                      ? warningNoTask(context)
-                      : deleteAllTask(context);
-                },
-                child: const Icon(CupertinoIcons.trash, size: 40),
+              /// Delete Icon
+              Material(
+                color: Colors.transparent,
+                child: Tooltip(
+                  message: 'Delete all tasks',
+                  child: GestureDetector(
+                    onTap: () {
+                      base.isEmpty
+                          ? warningNoTask(context)
+                          : deleteAllTask(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        CupertinoIcons.trash,
+                        size: 24,
+                        color: Colors.red.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -365,8 +563,30 @@ class _MyAppBarState extends State<MyAppBar>
 }
 
 /// Floating Action Button
-class FAB extends StatelessWidget {
+class FAB extends StatefulWidget {
   const FAB({super.key});
+
+  @override
+  State<FAB> createState() => _FABState();
+}
+
+class _FABState extends State<FAB> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -382,17 +602,45 @@ class FAB extends StatelessWidget {
           ),
         );
       },
-      child: Material(
-        borderRadius: BorderRadius.circular(15),
-        elevation: 10,
-        child: Container(
-          width: 70,
-          height: 70,
-          decoration: BoxDecoration(
-            color: MyColors.primaryColor,
-            borderRadius: BorderRadius.circular(15),
+      onTapDown: (_) {
+        _animationController.forward();
+      },
+      onTapCancel: () {
+        _animationController.reverse();
+      },
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 1.0, end: 0.85).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeInOut,
           ),
-          child: const Center(child: Icon(Icons.add, color: Colors.white)),
+        ),
+        child: Material(
+          borderRadius: BorderRadius.circular(16),
+          elevation: 12,
+          shadowColor: MyColors.primaryColor.withValues(alpha: 0.4),
+          child: Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: MyColors.primaryGradientColor,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: MyColors.primaryColor.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(Icons.add, color: Colors.white, size: 32),
+            ),
+          ),
         ),
       ),
     );
