@@ -34,6 +34,39 @@ class _TaskViewState extends State<TaskView> {
   DateTime? time;
   DateTime? date;
 
+  Future<void> _confirmDeleteTask() async {
+    if (widget.task == null) {
+      return;
+    }
+
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(MyString.areYouSure),
+          content: const Text('This action will remove the task.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text(MyString.deleteTask),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true) {
+      deleteTask();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
   /// Show Selected Time As String Format
   String showTime(DateTime? time) {
     if (widget.task?.createdAtTime == null) {
@@ -142,7 +175,10 @@ class _TaskViewState extends State<TaskView> {
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: const MyAppBar(),
+        appBar: MyAppBar(
+          showDelete: !isTaskAlreadyExistBool(),
+          onDelete: _confirmDeleteTask,
+        ),
         body: SizedBox(
           width: double.infinity,
           height: double.infinity,
@@ -469,7 +505,10 @@ class _TaskViewState extends State<TaskView> {
 
 /// AppBar
 class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const MyAppBar({super.key});
+  const MyAppBar({super.key, this.showDelete = false, this.onDelete});
+
+  final bool showDelete;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -491,6 +530,16 @@ class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
                 child: const Icon(Icons.arrow_back_ios_new_rounded, size: 50),
               ),
             ),
+            if (showDelete)
+              Padding(
+                padding: const EdgeInsets.only(right: 20),
+                child: IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, size: 32),
+                  color: MyColors.primaryColor,
+                  tooltip: MyString.deleteTask,
+                ),
+              ),
           ],
         ),
       ),
