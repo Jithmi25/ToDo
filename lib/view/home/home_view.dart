@@ -181,6 +181,29 @@ class _HomeViewState extends State<HomeView> {
                     ],
                   ),
                 ),
+                const SizedBox(width: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.asset(
+                    'assets/img/logo.jpeg',
+                    width: 52,
+                    height: 52,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 52,
+                        height: 52,
+                        color: Colors.white.withValues(alpha: 0.2),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.image_not_supported_outlined,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           ),
