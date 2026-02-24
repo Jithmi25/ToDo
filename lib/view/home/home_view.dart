@@ -341,7 +341,8 @@ class MySlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var textTheme = Theme.of(context).textTheme;
+    final currentUser = BaseWidget.of(context).dataStore.getCurrentUser();
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 60),
       decoration: const BoxDecoration(
@@ -379,7 +380,7 @@ class MySlider extends StatelessWidget {
 
           /// User info with better styling
           Text(
-            "AmirHossein Bayat",
+            currentUser?.fullName ?? "User",
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -388,7 +389,7 @@ class MySlider extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            "junior flutter dev",
+            currentUser?.email ?? "user@example.com",
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.8),
               fontSize: 13,
@@ -451,6 +452,86 @@ class MySlider extends StatelessWidget {
               },
             ),
           ),
+
+          /// Logout Button
+          Container(
+            margin: const EdgeInsets.only(top: 20, left: 10, right: 10),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () async {
+                  final shouldLogout = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogContext) {
+                      return AlertDialog(
+                        title: const Text('Logout'),
+                        content: const Text('Are you sure you want to logout?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(false),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(true),
+                            child: const Text('Logout'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+
+                  if (shouldLogout == true) {
+                    if (context.mounted) {
+                      await BaseWidget.of(context).dataStore.logoutUser();
+                      if (context.mounted) {
+                        Navigator.of(
+                          context,
+                        ).pushNamedAndRemoveUntil('/login', (_) => false);
+                      }
+                    }
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          CupertinoIcons.arrow_right_arrow_left,
+                          color: Colors.red,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Text(
+                        'Logout',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -506,7 +587,6 @@ class _MyAppBarState extends State<MyAppBar>
 
   @override
   Widget build(BuildContext context) {
-    var base = BaseWidget.of(context).dataStore.box;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -558,9 +638,7 @@ class _MyAppBarState extends State<MyAppBar>
                   message: 'Delete all tasks',
                   child: GestureDetector(
                     onTap: () {
-                      base.isEmpty
-                          ? warningNoTask(context)
-                          : deleteAllTask(context);
+                      deleteAllTask(context);
                     },
                     child: Container(
                       padding: const EdgeInsets.all(8),

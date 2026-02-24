@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 ///
-import '../data/hive_data_store.dart';
-import '../models/task.dart';
-import '../view/home/home_view.dart';
+import 'data/hive_data_store.dart';
+import 'models/task.dart';
+import 'models/user.dart';
+import 'view/home/home_view.dart';
+import 'view/auth/login_view.dart';
 
 Future<void> main() async {
   // Ensure Flutter binding is initialized before using Hive
@@ -24,13 +26,18 @@ Future<void> main() async {
 Future<void> _initializeHive() async {
   await Hive.initFlutter();
 
-  // Register Hive Adapter
+  // Register Hive Adapters
   Hive.registerAdapter<Task>(TaskAdapter());
+  Hive.registerAdapter<User>(UserAdapter());
 
-  // Open box with error handling
+  // Open boxes with error handling
   try {
-    final box = await Hive.openBox<Task>('tasksBox');
-    await _cleanupOldTasks(box);
+    await Hive.openBox<Task>('tasksBox');
+    await Hive.openBox<User>('usersBox');
+    await Hive.openBox('currentUserBox');
+
+    final taskBox = await Hive.openBox<Task>('tasksBox');
+    await _cleanupOldTasks(taskBox);
   } catch (e) {
     debugPrint('Failed to initialize Hive: $e');
     // Consider rethrowing or handling based on your app's needs
@@ -57,12 +64,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dataStore = BaseWidget(child: Container()).dataStore;
+    final isLoggedIn = dataStore.isUserLoggedIn();
+
     return BaseWidget(
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'Flutter Hive Todo App',
         theme: _buildAppTheme(),
-        home: const HomeView(),
+        initialRoute: isLoggedIn ? '/home' : '/login',
+        routes: {
+          '/login': (context) => const LoginView(),
+          '/home': (context) => const HomeView(),
+        },
       ),
     );
   }
