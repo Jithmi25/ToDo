@@ -208,6 +208,11 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
 
+          _ProgressAnalysisCard(
+            totalCount: tasks.length,
+            completedCount: checkDoneTask(tasks),
+          ),
+
           /// Tasks List or Empty State
           Expanded(
             child: tasks.isNotEmpty
@@ -320,6 +325,131 @@ class _HomeViewState extends State<HomeView> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProgressAnalysisCard extends StatelessWidget {
+  const _ProgressAnalysisCard({
+    required this.totalCount,
+    required this.completedCount,
+  });
+
+  final int totalCount;
+  final int completedCount;
+
+  int get pendingCount => totalCount - completedCount;
+
+  double get completionRate {
+    if (totalCount == 0) return 0;
+    return completedCount / totalCount;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final int maxCount = totalCount == 0 ? 1 : totalCount;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Progress Analysis',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${(completionRate * 100).round()}% completion rate',
+            style: TextStyle(
+              color: Colors.black.withValues(alpha: 0.6),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _AnalysisBar(
+            label: 'Completed',
+            value: completedCount,
+            maxValue: maxCount,
+            barColor: MyColors.primaryColor,
+          ),
+          const SizedBox(height: 10),
+          _AnalysisBar(
+            label: 'Pending',
+            value: pendingCount,
+            maxValue: maxCount,
+            barColor: MyColors.primaryColor.withValues(alpha: 0.35),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnalysisBar extends StatelessWidget {
+  const _AnalysisBar({
+    required this.label,
+    required this.value,
+    required this.maxValue,
+    required this.barColor,
+  });
+
+  final String label;
+  final int value;
+  final int maxValue;
+  final Color barColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final double ratio = maxValue == 0 ? 0 : value / maxValue;
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.black.withValues(alpha: 0.75),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              '$value',
+              style: TextStyle(
+                color: Colors.black.withValues(alpha: 0.65),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: ratio.clamp(0, 1),
+            minHeight: 10,
+            backgroundColor: Colors.black.withValues(alpha: 0.08),
+            valueColor: AlwaysStoppedAnimation<Color>(barColor),
+          ),
+        ),
+      ],
     );
   }
 }
