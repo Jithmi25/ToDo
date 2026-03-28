@@ -7,6 +7,7 @@ class MyString {
   static const String taskStrnig = "Task";
   static const String titleOfTitleTextField = "What are you planing😇?";
   static const String addNote = 'Add Note';
+  static const String categoryString = "Category";
   static const String timeString = "Time";
   static const String dateString = "Date";
   static const String deleteTask = "Delete Task";

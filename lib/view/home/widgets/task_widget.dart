@@ -159,6 +159,27 @@ class _TaskWidgetState extends State<TaskWidget> {
                             : null,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: MyColors.primaryColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        widget.task.category,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: widget.task.isCompleted
+                              ? Colors.grey.withValues(alpha: 0.65)
+                              : MyColors.primaryColor,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

@@ -33,6 +33,22 @@ class _TaskViewState extends State<TaskView> {
   dynamic subtitle;
   DateTime? time;
   DateTime? date;
+  static const List<String> _categories = [
+    'General',
+    'Work',
+    'Personal',
+    'Study',
+    'Shopping',
+  ];
+  String selectedCategory = 'General';
+
+  @override
+  void initState() {
+    super.initState();
+    selectedCategory = widget.task?.category ?? 'General';
+    title = widget.taskControllerForTitle?.text;
+    subtitle = widget.taskControllerForSubtitle?.text;
+  }
 
   Future<void> _confirmDeleteTask() async {
     if (widget.task == null) {
@@ -136,8 +152,15 @@ class _TaskViewState extends State<TaskView> {
     if (widget.taskControllerForTitle?.text != null &&
         widget.taskControllerForSubtitle?.text != null) {
       try {
-        widget.taskControllerForTitle?.text = title;
-        widget.taskControllerForSubtitle?.text = subtitle;
+        final updatedTitle = title ?? widget.taskControllerForTitle?.text ?? '';
+        final updatedSubtitle =
+            subtitle ?? widget.taskControllerForSubtitle?.text ?? '';
+
+        widget.taskControllerForTitle?.text = updatedTitle;
+        widget.taskControllerForSubtitle?.text = updatedSubtitle;
+        widget.task?.title = updatedTitle;
+        widget.task?.subtitle = updatedSubtitle;
+        widget.task?.category = selectedCategory;
 
         // widget.task?.createdAtDate = date!;
         // widget.task?.createdAtTime = time!;
@@ -154,6 +177,7 @@ class _TaskViewState extends State<TaskView> {
           createdAtTime: time,
           createdAtDate: date,
           subtitle: subtitle,
+          category: selectedCategory,
         );
         BaseWidget.of(context).dataStore.addTask(task: task);
         Navigator.of(context).pop();
@@ -281,7 +305,7 @@ class _TaskViewState extends State<TaskView> {
   ) {
     return SizedBox(
       width: double.infinity,
-      height: 535,
+      height: 620,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -349,6 +373,37 @@ class _TaskViewState extends State<TaskView> {
                   subtitle = value;
                 },
               ),
+            ),
+          ),
+
+          Container(
+            margin: const EdgeInsets.fromLTRB(20, 8, 20, 10),
+            child: DropdownButtonFormField<String>(
+              initialValue: selectedCategory,
+              decoration: InputDecoration(
+                labelText: MyString.categoryString,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: MyColors.primaryColor),
+                ),
+              ),
+              items: _categories
+                  .map(
+                    (category) => DropdownMenuItem<String>(
+                      value: category,
+                      child: Text(category),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  selectedCategory = value;
+                });
+              },
             ),
           ),
 
