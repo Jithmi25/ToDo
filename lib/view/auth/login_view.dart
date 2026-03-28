@@ -67,6 +67,171 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    final resetFormKey = GlobalKey<FormState>();
+    final resetEmailController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscureNewPassword = true;
+    bool obscureConfirmPassword = true;
+    bool isResetting = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Forgot Password'),
+              content: Form(
+                key: resetFormKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: resetEmailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email',
+                          prefixIcon: Icon(CupertinoIcons.mail),
+                        ),
+                        validator: LoginValidator.validateEmail,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: newPasswordController,
+                        obscureText: obscureNewPassword,
+                        decoration: InputDecoration(
+                          labelText: 'New Password',
+                          prefixIcon: const Icon(CupertinoIcons.lock),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureNewPassword
+                                  ? CupertinoIcons.eye_slash
+                                  : CupertinoIcons.eye,
+                            ),
+                            onPressed: () {
+                              setDialogState(() {
+                                obscureNewPassword = !obscureNewPassword;
+                              });
+                            },
+                          ),
+                        ),
+                        validator: LoginValidator.validatePassword,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: confirmPasswordController,
+                        obscureText: obscureConfirmPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Confirm Password',
+                          prefixIcon: const Icon(CupertinoIcons.lock),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureConfirmPassword
+                                  ? CupertinoIcons.eye_slash
+                                  : CupertinoIcons.eye,
+                            ),
+                            onPressed: () {
+                              setDialogState(() {
+                                obscureConfirmPassword =
+                                    !obscureConfirmPassword;
+                              });
+                            },
+                          ),
+                        ),
+                        validator: (value) =>
+                            LoginValidator.validateConfirmPassword(
+                              value,
+                              newPasswordController.text,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isResetting
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop();
+                        },
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: isResetting
+                      ? null
+                      : () async {
+                          if (!resetFormKey.currentState!.validate()) {
+                            return;
+                          }
+
+                          final dataStore = BaseWidget.of(context).dataStore;
+                          final scaffoldMessenger = ScaffoldMessenger.of(
+                            context,
+                          );
+                          final dialogNavigator = Navigator.of(dialogContext);
+
+                          setDialogState(() {
+                            isResetting = true;
+                          });
+
+                          final success = await dataStore.resetPassword(
+                            email: resetEmailController.text.trim(),
+                            newPassword: newPasswordController.text,
+                          );
+
+                          if (!mounted) return;
+
+                          if (success) {
+                            _emailController.text = resetEmailController.text
+                                .trim();
+                            _passwordController.clear();
+                            dialogNavigator.pop();
+                            scaffoldMessenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Password reset successfully. Please sign in.',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } else {
+                            setDialogState(() {
+                              isResetting = false;
+                            });
+                            scaffoldMessenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'No account found for this email.',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                  child: isResetting
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Reset'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    resetEmailController.dispose();
+    newPasswordController.dispose();
+    confirmPasswordController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     var textTheme = Theme.of(context).textTheme;
@@ -179,6 +344,21 @@ class _LoginViewState extends State<LoginView> {
                           ),
                         ),
                         validator: LoginValidator.validatePassword,
+                      ),
+                      const SizedBox(height: 8),
+
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: _showForgotPasswordDialog,
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              color: MyColors.primaryColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 24),
 

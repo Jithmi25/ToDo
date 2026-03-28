@@ -95,6 +95,33 @@ class HiveDataStore {
     }
   }
 
+  /// Reset user password using email
+  Future<bool> resetPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      User? user;
+      for (var u in userBox.values) {
+        if (u.email.toLowerCase() == email.toLowerCase()) {
+          user = u;
+          break;
+        }
+      }
+
+      if (user == null) {
+        return false;
+      }
+
+      user.password = newPassword;
+      await user.save();
+      return true;
+    } catch (e) {
+      debugPrint('Error resetting password: $e');
+      return false;
+    }
+  }
+
   /// Get current logged-in user
   User? getCurrentUser() {
     try {
