@@ -1,43 +1,100 @@
 import 'package:flutter/foundation.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 
 ///
 import '../models/task.dart';
 import '../models/user.dart';
 
 class HiveDataStore {
-  static const taskBoxName = "tasksBox";
-  static const userBoxName = "usersBox";
-  static const currentUserBoxName = "currentUserBox";
+  static const usersCollection = 'users';
+  static const tasksSubCollection = 'tasks';
 
-  final Box<Task> taskBox = Hive.box<Task>(taskBoxName);
-  final Box<User> userBox = Hive.box<User>(userBoxName);
-  final Box<dynamic> currentUserBox = Hive.box(currentUserBoxName);
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final fb_auth.FirebaseAuth _auth = fb_auth.FirebaseAuth.instance;
+
+  String? get _currentUserId => _auth.currentUser?.uid;
+
+  CollectionReference<Map<String, dynamic>>? get _tasksRef {
+    final userId = _currentUserId;
+    if (userId == null) return null;
+    return _firestore
+        .collection(usersCollection)
+        .doc(userId)
+        .collection(tasksSubCollection);
+  }
 
   // ===== Task Methods =====
 
   /// Add new Task
   Future<void> addTask({required Task task}) async {
-    await taskBox.put(task.id, task);
+    final tasksRef = _tasksRef;
+    if (tasksRef == null) {
+      throw StateError('User not logged in');
+    }
+
+    await tasksRef.doc(task.id).set(_taskToMap(task));
   }
 
   /// Show task
   Future<Task?> getTask({required String id}) async {
-    return taskBox.get(id);
+    final tasksRef = _tasksRef;
+    if (tasksRef == null) {
+      return null;
+    }
+
+    final doc = await tasksRef.doc(id).get();
+    if (!doc.exists) {
+      return null;
+    }
+
+    return _taskFromDoc(doc);
   }
 
   /// Update task
   Future<void> updateTask({required Task task}) async {
-    await task.save();
+    final tasksRef = _tasksRef;
+    if (tasksRef == null) {
+      throw StateError('User not logged in');
+    }
+
+    await tasksRef.doc(task.id).set(_taskToMap(task), SetOptions(merge: true));
   }
 
   /// Delete task
   Future<void> dalateTask({required Task task}) async {
-    await task.delete();
+    final tasksRef = _tasksRef;
+    if (tasksRef == null) {
+      return;
+    }
+
+    await tasksRef.doc(task.id).delete();
   }
 
-  ValueListenable<Box<Task>> listenToTask() {
-    return taskBox.listenable();
+  Stream<List<Task>> listenToTask() {
+    final tasksRef = _tasksRef;
+    if (tasksRef == null) {
+      return Stream.value(<Task>[]);
+    }
+
+    return tasksRef
+        .orderBy('createdAtDate')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map(_taskFromDoc).toList());
+  }
+
+  Future<void> clearAllTasks() async {
+    final tasksRef = _tasksRef;
+    if (tasksRef == null) {
+      return;
+    }
+
+    final snapshot = await tasksRef.get();
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 
   // ===== User/Auth Methods =====
@@ -49,20 +106,30 @@ class HiveDataStore {
     required String fullName,
   }) async {
     try {
-      // Check if email already exists
-      final userExists = userBox.values.any((user) => user.email == email);
-      if (userExists) {
-        return false;
-      }
-
-      final newUser = User.create(
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
-        fullName: fullName,
       );
 
-      await userBox.put(newUser.id, newUser);
+      await credential.user?.updateDisplayName(fullName);
+
+      final userId = credential.user?.uid;
+      if (userId != null) {
+        await _firestore.collection(usersCollection).doc(userId).set({
+          'email': email,
+          'fullName': fullName,
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      await _auth.signOut();
       return true;
+    } on fb_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        return false;
+      }
+      debugPrint('Error registering user: ${e.message}');
+      return false;
     } catch (e) {
       debugPrint('Error registering user: $e');
       return false;
@@ -75,20 +142,36 @@ class HiveDataStore {
     required String password,
   }) async {
     try {
-      User? user;
-      for (var u in userBox.values) {
-        if (u.email == email && u.password == password) {
-          user = u;
-          break;
-        }
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final authUser = credential.user;
+      if (authUser == null) {
+        return null;
       }
 
-      if (user != null) {
-        // Store current user ID
-        await currentUserBox.put('currentUserId', user.id);
-      }
+      final userDoc = await _firestore
+          .collection(usersCollection)
+          .doc(authUser.uid)
+          .get();
 
-      return user;
+      final data = userDoc.data();
+      final createdAtTimestamp = data?['createdAt'];
+
+      return User(
+        id: authUser.uid,
+        email: authUser.email ?? email,
+        password: '',
+        fullName:
+            (data?['fullName'] as String?) ?? authUser.displayName ?? 'User',
+        createdAt: createdAtTimestamp is Timestamp
+            ? createdAtTimestamp.toDate()
+            : DateTime.now(),
+      );
+    } on fb_auth.FirebaseAuthException {
+      return null;
     } catch (e) {
       debugPrint('Error logging in: $e');
       return null;
@@ -101,20 +184,12 @@ class HiveDataStore {
     required String newPassword,
   }) async {
     try {
-      User? user;
-      for (var u in userBox.values) {
-        if (u.email.toLowerCase() == email.toLowerCase()) {
-          user = u;
-          break;
-        }
-      }
-
-      if (user == null) {
+      final signInMethods = await _auth.fetchSignInMethodsForEmail(email);
+      if (signInMethods.isEmpty) {
         return false;
       }
 
-      user.password = newPassword;
-      await user.save();
+      await _auth.sendPasswordResetEmail(email: email);
       return true;
     } catch (e) {
       debugPrint('Error resetting password: $e');
@@ -125,9 +200,18 @@ class HiveDataStore {
   /// Get current logged-in user
   User? getCurrentUser() {
     try {
-      final userId = currentUserBox.get('currentUserId');
-      if (userId == null) return null;
-      return userBox.get(userId);
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        return null;
+      }
+
+      return User(
+        id: currentUser.uid,
+        email: currentUser.email ?? '',
+        password: '',
+        fullName: currentUser.displayName ?? 'User',
+        createdAt: currentUser.metadata.creationTime ?? DateTime.now(),
+      );
     } catch (e) {
       debugPrint('Error getting current user: $e');
       return null;
@@ -137,7 +221,7 @@ class HiveDataStore {
   /// Logout user
   Future<void> logoutUser() async {
     try {
-      await currentUserBox.delete('currentUserId');
+      await _auth.signOut();
     } catch (e) {
       debugPrint('Error logging out: $e');
     }
@@ -145,6 +229,37 @@ class HiveDataStore {
 
   /// Check if user is logged in
   bool isUserLoggedIn() {
-    return currentUserBox.get('currentUserId') != null;
+    return _auth.currentUser != null;
+  }
+
+  Map<String, dynamic> _taskToMap(Task task) {
+    return {
+      'title': task.title,
+      'subtitle': task.subtitle,
+      'createdAtTime': Timestamp.fromDate(task.createdAtTime),
+      'createdAtDate': Timestamp.fromDate(task.createdAtDate),
+      'isCompleted': task.isCompleted,
+      'category': task.category,
+    };
+  }
+
+  Task _taskFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? <String, dynamic>{};
+    final createdAtTime = data['createdAtTime'];
+    final createdAtDate = data['createdAtDate'];
+
+    return Task(
+      id: doc.id,
+      title: (data['title'] as String?) ?? '',
+      subtitle: (data['subtitle'] as String?) ?? '',
+      createdAtTime: createdAtTime is Timestamp
+          ? createdAtTime.toDate()
+          : DateTime.now(),
+      createdAtDate: createdAtDate is Timestamp
+          ? createdAtDate.toDate()
+          : DateTime.now(),
+      isCompleted: (data['isCompleted'] as bool?) ?? false,
+      category: (data['category'] as String?) ?? 'General',
+    );
   }
 }

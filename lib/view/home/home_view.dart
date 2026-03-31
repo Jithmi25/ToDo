@@ -3,7 +3,6 @@
 import 'package:animate_do/animate_do.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/adapters.dart';
 import 'package:lottie/lottie.dart';
 import 'package:flutter_slider_drawer/flutter_slider_drawer.dart';
 
@@ -52,10 +51,10 @@ class _HomeViewState extends State<HomeView> {
     final base = BaseWidget.of(context);
     var textTheme = Theme.of(context).textTheme;
 
-    return ValueListenableBuilder(
-      valueListenable: base.dataStore.listenToTask(),
-      builder: (ctx, Box<Task> box, Widget? child) {
-        var tasks = box.values.toList();
+    return StreamBuilder<List<Task>>(
+      stream: base.dataStore.listenToTask(),
+      builder: (ctx, snapshot) {
+        var tasks = snapshot.data ?? <Task>[];
 
         /// Sort Task List
         tasks.sort(((a, b) => a.createdAtDate.compareTo(b.createdAtDate)));

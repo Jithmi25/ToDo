@@ -3,7 +3,7 @@
 //! Programming with Flexz on Youtube
 
 import 'package:flutter/material.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 ///
 import 'data/hive_data_store.dart';
@@ -13,50 +13,16 @@ import 'view/home/home_view.dart';
 import 'view/auth/login_view.dart';
 
 Future<void> main() async {
-  // Ensure Flutter binding is initialized before using Hive
+  // Ensure Flutter binding is initialized before plugins
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive DB
-  await _initializeHive();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase initialization failed: $e');
+  }
 
   runApp(const MyApp());
-}
-
-/// Separated Hive initialization logic for better organization
-Future<void> _initializeHive() async {
-  await Hive.initFlutter();
-
-  // Register Hive Adapters
-  Hive.registerAdapter<Task>(TaskAdapter());
-  Hive.registerAdapter<User>(UserAdapter());
-
-  // Open boxes with error handling
-  try {
-    await Hive.openBox<Task>('tasksBox');
-    await Hive.openBox<User>('usersBox');
-    await Hive.openBox('currentUserBox');
-
-    final taskBox = await Hive.openBox<Task>('tasksBox');
-    await _cleanupOldTasks(taskBox);
-  } catch (e) {
-    debugPrint('Failed to initialize Hive: $e');
-    // Consider rethrowing or handling based on your app's needs
-  }
-}
-
-/// Cleanup tasks from previous days
-Future<void> _cleanupOldTasks(Box<Task> box) async {
-  final now = DateTime.now();
-  final tasksSnapshot = box.values.toList();
-
-  final tasksToDelete = tasksSnapshot
-      .where((task) => task.createdAtTime.day != now.day)
-      .toList();
-
-  // Use batch operation for better performance
-  await box.deleteAll(
-    tasksToDelete.map((task) => task.key).whereType<String>(),
-  );
 }
 
 class MyApp extends StatelessWidget {

@@ -58,7 +58,7 @@ dynamic deleteAllTask(BuildContext context) {
       Navigator.pop(context);
     },
     onTapConfirm: () {
-      BaseWidget.of(context).dataStore.taskBox.clear();
+      BaseWidget.of(context).dataStore.clearAllTasks();
       Navigator.pop(context);
     },
     panaraDialogType: PanaraDialogType.error,

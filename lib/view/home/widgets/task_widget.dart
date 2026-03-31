@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 ///
+import '../../../main.dart';
 import '../../../models/task.dart';
 import '../../../utils/colors.dart';
 import '../../../view/tasks/task_view.dart';
@@ -80,9 +81,11 @@ class _TaskWidgetState extends State<TaskWidget> {
             children: [
               /// Check icon with better visual feedback
               GestureDetector(
-                onTap: () {
+                onTap: () async {
                   widget.task.isCompleted = !widget.task.isCompleted;
-                  widget.task.save();
+                  await BaseWidget.of(
+                    context,
+                  ).dataStore.updateTask(task: widget.task);
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 600),

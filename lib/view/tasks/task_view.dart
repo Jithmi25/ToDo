@@ -148,7 +148,7 @@ class _TaskViewState extends State<TaskView> {
   }
 
   /// If any task already exist app will update it otherwise the app will add a new task
-  dynamic isTaskAlreadyExistUpdateTask() {
+  Future<void> isTaskAlreadyExistUpdateTask() async {
     if (widget.taskControllerForTitle?.text != null &&
         widget.taskControllerForSubtitle?.text != null) {
       try {
@@ -165,21 +165,23 @@ class _TaskViewState extends State<TaskView> {
         // widget.task?.createdAtDate = date!;
         // widget.task?.createdAtTime = time!;
 
-        widget.task?.save();
+        if (widget.task != null) {
+          await BaseWidget.of(context).dataStore.updateTask(task: widget.task!);
+        }
         Navigator.of(context).pop();
       } catch (error) {
         nothingEnterOnUpdateTaskMode(context);
       }
     } else {
       if (title != null && subtitle != null) {
-        var task = Task.create(
+        final task = Task.create(
           title: title,
           createdAtTime: time,
           createdAtDate: date,
           subtitle: subtitle,
           category: selectedCategory,
         );
-        BaseWidget.of(context).dataStore.addTask(task: task);
+        await BaseWidget.of(context).dataStore.addTask(task: task);
         Navigator.of(context).pop();
       } else {
         emptyFieldsWarning(context);
@@ -188,8 +190,9 @@ class _TaskViewState extends State<TaskView> {
   }
 
   /// Delete Selected Task
-  dynamic deleteTask() {
-    return widget.task?.delete();
+  Future<void> deleteTask() async {
+    if (widget.task == null) return;
+    await BaseWidget.of(context).dataStore.dalateTask(task: widget.task!);
   }
 
   @override
@@ -258,8 +261,7 @@ class _TaskViewState extends State<TaskView> {
                     minWidth: 150,
                     height: 55,
                     onPressed: () {
-                      deleteTask();
-                      Navigator.pop(context);
+                      deleteTask().then((_) => Navigator.pop(context));
                     },
                     color: Colors.white,
                     child: const Row(

@@ -193,7 +193,7 @@ class _LoginViewState extends State<LoginView> {
                             scaffoldMessenger.showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Password reset successfully. Please sign in.',
+                                  'Password reset email sent. Check your inbox.',
                                 ),
                                 backgroundColor: Colors.green,
                               ),
