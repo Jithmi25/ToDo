@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 ///
 import 'data/hive_data_store.dart';
+import 'firebase_options.dart';
 import 'models/task.dart';
 import 'models/user.dart';
 import 'view/home/home_view.dart';
@@ -16,11 +17,7 @@ Future<void> main() async {
   // Ensure Flutter binding is initialized before plugins
   WidgetsFlutterBinding.ensureInitialized();
 
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
-  }
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const MyApp());
 }
