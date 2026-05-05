@@ -189,30 +189,86 @@ class _TaskWidgetState extends State<TaskWidget> {
               const SizedBox(width: 12),
 
               /// Date & Time of Task
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    DateFormat('hh:mm a').format(widget.task.createdAtTime),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: widget.task.isCompleted
-                          ? Colors.grey.withValues(alpha: 0.5)
-                          : MyColors.primaryColor,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      DateFormat('hh:mm a').format(widget.task.createdAtTime),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: widget.task.isCompleted
+                            ? Colors.grey.withValues(alpha: 0.5)
+                            : MyColors.primaryColor,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    DateFormat.yMMMEd().format(widget.task.createdAtDate),
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.grey.withValues(alpha: 0.6),
+                    const SizedBox(height: 3),
+                    Text(
+                      DateFormat.yMMMEd().format(widget.task.createdAtDate),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey.withValues(alpha: 0.6),
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              /// Delete Button
+              SizedBox(
+                width: 32,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: Icon(
+                    CupertinoIcons.trash,
+                    color: Colors.red.withValues(alpha: 0.7),
+                    size: 20,
                   ),
-                ],
+                  onPressed: () async {
+                    // Show confirmation dialog
+                    showCupertinoDialog(
+                      context: context,
+                      builder: (ctx) => CupertinoAlertDialog(
+                        title: const Text('Delete Task'),
+                        content: const Text(
+                          'Are you sure you want to delete this task?',
+                        ),
+                        actions: [
+                          CupertinoDialogAction(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          CupertinoDialogAction(
+                            isDestructiveAction: true,
+                            onPressed: () async {
+                              await BaseWidget.of(
+                                context,
+                              ).dataStore.dalateTask(task: widget.task);
+                              if (ctx.mounted) {
+                                Navigator.pop(ctx);
+                              }
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Task deleted'),
+                                    duration: Duration(seconds: 2),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),

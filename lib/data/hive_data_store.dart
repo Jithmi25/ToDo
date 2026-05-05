@@ -62,13 +62,18 @@ class HiveDataStore {
   }
 
   /// Delete task
-  Future<void> dalateTask({required Task task}) async {
+  Future<void> deleteTask({required Task task}) async {
     final tasksRef = _tasksRef;
     if (tasksRef == null) {
       return;
     }
 
     await tasksRef.doc(task.id).delete();
+  }
+
+  /// Backward compatibility - old method name
+  Future<void> dalateTask({required Task task}) async {
+    await deleteTask(task: task);
   }
 
   Stream<List<Task>> listenToTask() {
