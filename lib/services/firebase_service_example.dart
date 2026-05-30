@@ -3,7 +3,10 @@
 // ==================== In Login View ====================
 
 import 'package:flutter/material.dart';
-import 'services/firebase_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
+import '../models/task.dart';
+import 'firebase_service.dart';
 
 class LoginExample {
   final firebaseService = FirebaseService();
@@ -118,9 +121,11 @@ class _HomeViewExampleState extends State<HomeViewExample> {
                   final task = Task(
                     id: '',
                     title: titleController.text,
-                    description: '',
+                    subtitle: '',
+                    createdAtTime: DateTime.now(),
+                    createdAtDate: DateTime.now(),
                     isCompleted: false,
-                    createdAt: DateTime.now(),
+                    category: 'General',
                   );
 
                   await firebaseService.addTask(task);

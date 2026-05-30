@@ -237,6 +237,41 @@ class HiveDataStore {
     return _auth.currentUser != null;
   }
 
+  /// Force a server-side read to verify Firebase connectivity.
+  ///
+  /// If Firestore rules deny this read, Firebase is still considered reachable
+  /// because a response was received from the server.
+  Future<FirebaseConnectionStatus> checkFirebaseConnection() async {
+    try {
+      await _firestore
+          .collection(usersCollection)
+          .limit(1)
+          .get(const GetOptions(source: Source.server));
+
+      return const FirebaseConnectionStatus(
+        isConnected: true,
+        message: 'Connected to Firebase server',
+      );
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') {
+        return const FirebaseConnectionStatus(
+          isConnected: true,
+          message: 'Firebase reachable (read blocked by security rules)',
+        );
+      }
+
+      return FirebaseConnectionStatus(
+        isConnected: false,
+        message: e.message ?? 'Unable to reach Firebase',
+      );
+    } catch (_) {
+      return const FirebaseConnectionStatus(
+        isConnected: false,
+        message: 'Unable to reach Firebase',
+      );
+    }
+  }
+
   Map<String, dynamic> _taskToMap(Task task) {
     return {
       'title': task.title,
@@ -267,4 +302,14 @@ class HiveDataStore {
       category: (data['category'] as String?) ?? 'General',
     );
   }
+}
+
+class FirebaseConnectionStatus {
+  const FirebaseConnectionStatus({
+    required this.isConnected,
+    required this.message,
+  });
+
+  final bool isConnected;
+  final String message;
 }

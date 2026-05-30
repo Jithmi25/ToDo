@@ -8,8 +8,6 @@ import 'package:firebase_core/firebase_core.dart';
 ///
 import 'data/hive_data_store.dart';
 import 'firebase_options.dart';
-import 'models/task.dart';
-import 'models/user.dart';
 import 'view/home/home_view.dart';
 import 'view/auth/login_view.dart';
 

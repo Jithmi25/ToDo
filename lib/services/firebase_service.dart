@@ -1,10 +1,9 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:firebase_storage/firebase_storage.dart' as fb_storage;
 import '../models/task.dart';
-import '../models/user.dart';
 
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
@@ -15,17 +14,18 @@ class FirebaseService {
 
   FirebaseService._internal();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final fb_auth.FirebaseAuth _auth = fb_auth.FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final fb_storage.FirebaseStorage _storage =
+      fb_storage.FirebaseStorage.instance;
 
   // ==================== Authentication ====================
 
   /// Get current user
-  User? get currentUser => _auth.currentUser;
+  fb_auth.User? get currentUser => _auth.currentUser;
 
   /// Sign up with email and password
-  Future<UserCredential> signUp({
+  Future<fb_auth.UserCredential> signUp({
     required String email,
     required String password,
     required String name,
@@ -40,13 +40,13 @@ class FirebaseService {
       await _createUserDocument(userCredential.user!, name);
 
       return userCredential;
-    } on FirebaseAuthException catch (e) {
+    } on fb_auth.FirebaseAuthException {
       rethrow;
     }
   }
 
   /// Sign in with email and password
-  Future<UserCredential> signIn({
+  Future<fb_auth.UserCredential> signIn({
     required String email,
     required String password,
   }) async {
@@ -55,7 +55,7 @@ class FirebaseService {
         email: email,
         password: password,
       );
-    } on FirebaseAuthException catch (e) {
+    } on fb_auth.FirebaseAuthException {
       rethrow;
     }
   }
@@ -66,7 +66,7 @@ class FirebaseService {
   }
 
   /// Create user document in Firestore
-  Future<void> _createUserDocument(User user, String name) async {
+  Future<void> _createUserDocument(fb_auth.User user, String name) async {
     await _firestore.collection('users').doc(user.uid).set({
       'uid': user.uid,
       'email': user.email,
@@ -89,11 +89,7 @@ class FirebaseService {
         .collection('tasks')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => Task.fromJson({...doc.data(), 'id': doc.id}))
-          .toList();
-    });
+        .map((snapshot) => snapshot.docs.map(_taskFromDoc).toList());
   }
 
   /// Add a new task
@@ -106,10 +102,10 @@ class FirebaseService {
         .doc(userId)
         .collection('tasks')
         .add({
-      ...task.toJson(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+          ..._taskToMap(task),
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
   }
 
   /// Update a task
@@ -123,9 +119,9 @@ class FirebaseService {
         .collection('tasks')
         .doc(taskId)
         .update({
-      ...task.toJson(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+          ..._taskToMap(task),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
   }
 
   /// Delete a task
@@ -152,9 +148,9 @@ class FirebaseService {
         .collection('tasks')
         .doc(taskId)
         .update({
-      'isCompleted': isCompleted,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+          'isCompleted': isCompleted,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
   }
 
   // ==================== User Profile ====================
@@ -217,6 +213,37 @@ class FirebaseService {
 
     await batch.commit();
   }
+
+  Map<String, dynamic> _taskToMap(Task task) {
+    return {
+      'title': task.title,
+      'subtitle': task.subtitle,
+      'createdAtTime': Timestamp.fromDate(task.createdAtTime),
+      'createdAtDate': Timestamp.fromDate(task.createdAtDate),
+      'isCompleted': task.isCompleted,
+      'category': task.category,
+    };
+  }
+
+  Task _taskFromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data() ?? <String, dynamic>{};
+    final createdAtTime = data['createdAtTime'];
+    final createdAtDate = data['createdAtDate'];
+
+    return Task(
+      id: doc.id,
+      title: (data['title'] as String?) ?? '',
+      subtitle: (data['subtitle'] as String?) ?? '',
+      createdAtTime: createdAtTime is Timestamp
+          ? createdAtTime.toDate()
+          : DateTime.now(),
+      createdAtDate: createdAtDate is Timestamp
+          ? createdAtDate.toDate()
+          : DateTime.now(),
+      isCompleted: (data['isCompleted'] as bool?) ?? false,
+      category: (data['category'] as String?) ?? 'General',
+    );
+  }
 }
 
 // Model class for user profile
@@ -225,11 +252,7 @@ class UserProfile {
   final String name;
   final String email;
 
-  UserProfile({
-    required this.uid,
-    required this.name,
-    required this.email,
-  });
+  UserProfile({required this.uid, required this.name, required this.email});
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
@@ -240,12 +263,6 @@ class UserProfile {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'uid': uid,
-      'name': name,
-      'email': email,
-    };
+    return {'uid': uid, 'name': name, 'email': email};
   }
 }
-
-import 'dart:io';

@@ -7,6 +7,7 @@ import 'package:lottie/lottie.dart';
 import 'package:flutter_slider_drawer/flutter_slider_drawer.dart';
 
 ///
+import '../../data/hive_data_store.dart';
 import '../../main.dart';
 import '../../models/task.dart';
 import '../../utils/colors.dart';
@@ -25,6 +26,31 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   GlobalKey<SliderDrawerState> dKey = GlobalKey<SliderDrawerState>();
+  late Future<FirebaseConnectionStatus> _firebaseConnectionFuture;
+  bool _didInitConnectionCheck = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_didInitConnectionCheck) {
+      _firebaseConnectionFuture = BaseWidget.of(
+        context,
+      ).dataStore.checkFirebaseConnection();
+      _didInitConnectionCheck = true;
+    }
+  }
+
+  Future<void> _refreshConnectionStatus(BaseWidget base) async {
+    setState(() {
+      _firebaseConnectionFuture = base.dataStore.checkFirebaseConnection();
+    });
+    await _firebaseConnectionFuture;
+  }
+
+  Future<void> _handleRefresh(BaseWidget base) async {
+    await _refreshConnectionStatus(base);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+  }
 
   /// Checking Done Tasks
   int checkDoneTask(List<Task> task) {
@@ -212,118 +238,235 @@ class _HomeViewState extends State<HomeView> {
             completedCount: checkDoneTask(tasks),
           ),
 
+          _FirebaseStatusCard(
+            statusFuture: _firebaseConnectionFuture,
+            onRetry: () => _refreshConnectionStatus(base),
+          ),
+
           /// Tasks List or Empty State
           Expanded(
-            child: tasks.isNotEmpty
-                ? ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.only(top: 16, bottom: 80),
-                    itemCount: tasks.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      var task = tasks[index];
+            child: RefreshIndicator(
+              onRefresh: () => _handleRefresh(base),
+              child: tasks.isNotEmpty
+                  ? ListView.builder(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.only(top: 16, bottom: 80),
+                      itemCount: tasks.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        var task = tasks[index];
 
-                      return Dismissible(
-                        direction: DismissDirection.horizontal,
-                        background: Container(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.red.withValues(alpha: 0.4),
+                        return Dismissible(
+                          direction: DismissDirection.horizontal,
+                          background: Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
                             ),
-                          ),
-                          alignment: Alignment.center,
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.delete_outline,
-                                color: Colors.red,
-                                size: 24,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                MyString.deletedTask,
-                                style: TextStyle(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        onDismissed: (direction) {
-                          base.dataStore.dalateTask(task: task);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Task deleted'),
-                              duration: const Duration(seconds: 2),
-                              backgroundColor: Colors.red.withValues(
-                                alpha: 0.7,
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.red.withValues(alpha: 0.4),
                               ),
                             ),
-                          );
-                        },
-                        key: Key(task.id),
-                        child: TaskWidget(task: tasks[index]),
-                      );
-                    },
-                  )
-                :
-                  /// Empty State with improved design
-                  Center(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          /// Lottie animation
-                          FadeIn(
-                            child: SizedBox(
-                              width: 200,
-                              height: 200,
-                              child: Lottie.asset(
-                                lottieURL,
-                                animate: tasks.isNotEmpty ? false : true,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          /// Celebration text
-                          FadeInUp(
-                            from: 30,
-                            child: Column(
+                            alignment: Alignment.center,
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Text(
-                                  MyString.doneAllTask,
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
+                                Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                  size: 24,
                                 ),
-                                const SizedBox(height: 8),
+                                SizedBox(width: 8),
                                 Text(
-                                  "Time to add new tasks or take a break! ☕",
+                                  MyString.deletedTask,
                                   style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey.withValues(alpha: 0.7),
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ],
+                          onDismissed: (direction) {
+                            base.dataStore.dalateTask(task: task);
+                            ScaffoldMessenger.of(context)
+                              ..hideCurrentSnackBar()
+                              ..showSnackBar(
+                                SnackBar(
+                                  content: const Text('Task deleted'),
+                                  duration: const Duration(seconds: 3),
+                                  backgroundColor: Colors.red.withValues(
+                                    alpha: 0.7,
+                                  ),
+                                  action: SnackBarAction(
+                                    label: 'Undo',
+                                    textColor: Colors.white,
+                                    onPressed: () {
+                                      base.dataStore.addTask(task: task);
+                                    },
+                                  ),
+                                ),
+                              );
+                          },
+                          key: Key(task.id),
+                          child: TaskWidget(task: tasks[index]),
+                        );
+                      },
+                    )
+                  : ListView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
                       ),
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.45,
+                          child: Center(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  /// Lottie animation
+                                  FadeIn(
+                                    child: SizedBox(
+                                      width: 200,
+                                      height: 200,
+                                      child: Lottie.asset(
+                                        lottieURL,
+                                        animate: tasks.isNotEmpty
+                                            ? false
+                                            : true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
+
+                                  /// Celebration text
+                                  FadeInUp(
+                                    from: 30,
+                                    child: Column(
+                                      children: [
+                                        const Text(
+                                          MyString.doneAllTask,
+                                          style: TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Time to add new tasks or take a break! ☕',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.withValues(
+                                              alpha: 0.7,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _FirebaseStatusCard extends StatelessWidget {
+  const _FirebaseStatusCard({
+    required this.statusFuture,
+    required this.onRetry,
+  });
+
+  final Future<FirebaseConnectionStatus> statusFuture;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<FirebaseConnectionStatus>(
+      future: statusFuture,
+      builder: (context, snapshot) {
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final status = snapshot.data;
+        final hasError = snapshot.hasError || (status?.isConnected == false);
+
+        final Color iconColor;
+        final IconData iconData;
+        final String title;
+        final String subtitle;
+
+        if (isLoading) {
+          iconColor = Colors.orange;
+          iconData = Icons.sync;
+          title = 'Checking Firebase connection...';
+          subtitle = 'Please wait a moment';
+        } else if (hasError) {
+          iconColor = Colors.red;
+          iconData = Icons.cloud_off;
+          title = 'Firebase not reachable';
+          subtitle = status?.message ?? 'Check internet and Firebase setup';
+        } else {
+          iconColor = Colors.green;
+          iconData = Icons.cloud_done;
+          title = 'Firebase connected';
+          subtitle = status?.message ?? 'Server connection is healthy';
+        }
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: iconColor.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            children: [
+              Icon(iconData, color: iconColor, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.black.withValues(alpha: 0.6),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Recheck connection',
+                onPressed: isLoading ? null : () => onRetry(),
+                icon: const Icon(Icons.refresh, size: 20),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
