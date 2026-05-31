@@ -22,6 +22,7 @@ class _SignupViewState extends State<SignupView> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
 
   @override
   void dispose() {
@@ -74,6 +75,38 @@ class _SignupViewState extends State<SignupView> {
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() => _isGoogleLoading = true);
+
+    try {
+      final dataStore = BaseWidget.of(context).dataStore;
+      final user = await dataStore.signInWithGoogle();
+
+      if (!mounted) return;
+
+      if (user != null) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google sign in was cancelled or failed.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleLoading = false);
       }
     }
   }
@@ -283,6 +316,95 @@ class _SignupViewState extends State<SignupView> {
                             ),
                       ),
                       const SizedBox(height: 24),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Divider(
+                              color: Colors.grey.withValues(alpha: 0.35),
+                              thickness: 1,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Text(
+                              'OR',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                          ),
+                          Expanded(
+                            child: Divider(
+                              color: Colors.grey.withValues(alpha: 0.35),
+                              thickness: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 55,
+                        child: OutlinedButton(
+                          onPressed: (_isLoading || _isGoogleLoading)
+                              ? null
+                              : _handleGoogleLogin,
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: Colors.grey.withValues(alpha: 0.35),
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            backgroundColor: Colors.white,
+                          ),
+                          child: _isGoogleLoading
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      height: 24,
+                                      width: 24,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white,
+                                        border: Border.all(
+                                          color: Colors.grey.withValues(
+                                            alpha: 0.35,
+                                          ),
+                                        ),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Text(
+                                        'G',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      'Continue with Google',
+                                      style: TextStyle(
+                                        color: Colors.black87,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
                       /// Sign Up Button
                       SizedBox(

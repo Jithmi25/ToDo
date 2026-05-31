@@ -10,6 +10,7 @@ import 'data/hive_data_store.dart';
 import 'firebase_options.dart';
 import 'view/home/home_view.dart';
 import 'view/auth/login_view.dart';
+import 'view/auth/signup_view.dart';
 
 Future<void> main() async {
   // Ensure Flutter binding is initialized before plugins
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
         initialRoute: isLoggedIn ? '/home' : '/login',
         routes: {
           '/login': (context) => const LoginView(),
+          '/signup': (context) => const SignupView(),
           '/home': (context) => const HomeView(),
         },
       ),

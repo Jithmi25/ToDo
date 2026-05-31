@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:google_sign_in/google_sign_in.dart';
 
 ///
 import '../models/task.dart';
@@ -138,6 +139,56 @@ class HiveDataStore {
     } catch (e) {
       debugPrint('Error registering user: $e');
       return false;
+    }
+  }
+
+  /// Sign in or sign up with Google
+  Future<User?> signInWithGoogle() async {
+    try {
+      final googleSignIn = GoogleSignIn(scopes: ['email']);
+      final googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        return null;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final credential = fb_auth.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+      final authUser = userCredential.user;
+
+      if (authUser == null) {
+        return null;
+      }
+
+      final email = authUser.email ?? googleUser.email;
+      final fullName = authUser.displayName ?? googleUser.displayName ?? 'User';
+
+      await _firestore.collection(usersCollection).doc(authUser.uid).set({
+        'email': email,
+        'fullName': fullName,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      final createdAt = authUser.metadata.creationTime ?? DateTime.now();
+
+      return User(
+        id: authUser.uid,
+        email: email,
+        password: '',
+        fullName: fullName,
+        createdAt: createdAt,
+      );
+    } on fb_auth.FirebaseAuthException catch (e) {
+      debugPrint('Error signing in with Google: ${e.message}');
+      return null;
+    } catch (e) {
+      debugPrint('Error signing in with Google: $e');
+      return null;
     }
   }
 
