@@ -16,6 +16,8 @@ import '../../view/home/widgets/task_widget.dart';
 import '../../view/tasks/task_view.dart';
 import '../../utils/strings.dart';
 
+enum TaskListFilter { all, completed, pending }
+
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
@@ -28,6 +30,8 @@ class _HomeViewState extends State<HomeView> {
   GlobalKey<SliderDrawerState> dKey = GlobalKey<SliderDrawerState>();
   late Future<FirebaseConnectionStatus> _firebaseConnectionFuture;
   bool _didInitConnectionCheck = false;
+  String _searchQuery = '';
+  TaskListFilter _taskListFilter = TaskListFilter.all;
 
   @override
   void didChangeDependencies() {
@@ -54,7 +58,7 @@ class _HomeViewState extends State<HomeView> {
 
   /// Checking Done Tasks
   int checkDoneTask(List<Task> task) {
-    int i = 0;
+                          child: TaskWidget(task: task),
     for (Task doneTasks in task) {
       if (doneTasks.isCompleted) {
         i++;
@@ -63,27 +67,70 @@ class _HomeViewState extends State<HomeView> {
     return i;
   }
 
-  /// Checking The Value Of the Circle Indicator
-  dynamic valueOfTheIndicator(List<Task> task) {
-    if (task.isNotEmpty) {
-      return task.length;
-    } else {
-      return 3;
-    }
-  }
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.45,
+                          child: Center(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  /// Lottie animation
+                                  FadeIn(
+                                    child: SizedBox(
+                                      width: 200,
+                                      height: 200,
+                                      child: Lottie.asset(
+                                        lottieURL,
+                                        animate: tasks.isNotEmpty
+                                            ? false
+                                            : true,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 24),
 
-  @override
-  Widget build(BuildContext context) {
-    final base = BaseWidget.of(context);
-    var textTheme = Theme.of(context).textTheme;
-
-    return StreamBuilder<List<Task>>(
-      stream: base.dataStore.listenToTask(),
-      builder: (ctx, snapshot) {
+                                  /// Empty state copy
+                                  FadeInUp(
+                                    from: 30,
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          tasks.isEmpty
+                                              ? MyString.doneAllTask
+                                              : 'No tasks match your search or filter.',
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          tasks.isEmpty
+                                              ? 'Time to add new tasks or take a break! ☕'
+                                              : 'Try a different keyword or clear the filter chips.',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.withValues(
+                                              alpha: 0.7,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
         var tasks = snapshot.data ?? <Task>[];
 
         /// Sort Task List
         tasks.sort(((a, b) => a.createdAtDate.compareTo(b.createdAtDate)));
+        final visibleTasks = _filterTasks(tasks);
 
         return Scaffold(
           backgroundColor: Colors.white,
@@ -104,7 +151,7 @@ class _HomeViewState extends State<HomeView> {
             slider: MySlider(),
 
             /// Main Body
-            child: _buildBody(tasks, base, textTheme),
+            child: _buildBody(tasks, visibleTasks, base, textTheme),
           ),
         );
       },
@@ -112,7 +159,12 @@ class _HomeViewState extends State<HomeView> {
   }
 
   /// Main Body
-  Widget _buildBody(List<Task> tasks, BaseWidget base, TextTheme textTheme) {
+  Widget _buildBody(
+    List<Task> tasks,
+    List<Task> visibleTasks,
+    BaseWidget base,
+    TextTheme textTheme,
+  ) {
     return SafeArea(
       child: Column(
         children: [
@@ -164,6 +216,69 @@ class _HomeViewState extends State<HomeView> {
                           ),
                           Text(
                             "of ${tasks.length}",
+
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                        child: TextField(
+                          onChanged: _updateSearchQuery,
+                          textInputAction: TextInputAction.search,
+                          decoration: InputDecoration(
+                            hintText: 'Search tasks, notes, or category',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: _searchQuery.isEmpty
+                                ? null
+                                : IconButton(
+                                    tooltip: 'Clear search',
+                                    onPressed: () => _updateSearchQuery(''),
+                                    icon: const Icon(Icons.clear),
+                                  ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(
+                                color: Colors.black.withValues(alpha: 0.06),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                color: MyColors.primaryColor,
+                                width: 1.4,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilterChip(
+                              label: const Text('All'),
+                              selected: _taskListFilter == TaskListFilter.all,
+                              onSelected: (_) => _updateFilter(TaskListFilter.all),
+                            ),
+                            FilterChip(
+                              label: const Text('Completed'),
+                              selected: _taskListFilter == TaskListFilter.completed,
+                              onSelected: (_) => _updateFilter(TaskListFilter.completed),
+                            ),
+                            FilterChip(
+                              label: const Text('Pending'),
+                              selected: _taskListFilter == TaskListFilter.pending,
+                              onSelected: (_) => _updateFilter(TaskListFilter.pending),
+                            ),
+                          ],
+                        ),
+                      ),
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.8),
                               fontSize: 10,
@@ -247,16 +362,16 @@ class _HomeViewState extends State<HomeView> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => _handleRefresh(base),
-              child: tasks.isNotEmpty
+              child: visibleTasks.isNotEmpty
                   ? ListView.builder(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.only(top: 16, bottom: 80),
-                      itemCount: tasks.length,
+                      itemCount: visibleTasks.length,
                       itemBuilder: (BuildContext context, int index) {
-                        var task = tasks[index];
+                        final task = visibleTasks[index];
 
                         return Dismissible(
-                          direction: DismissDirection.horizontal,
+                          key: Key(task.id),
                           background: Container(
                             margin: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -310,10 +425,53 @@ class _HomeViewState extends State<HomeView> {
                                 ),
                               );
                           },
-                          key: Key(task.id),
-                          child: TaskWidget(task: tasks[index]),
+                          child: TaskWidget(task: task),
                         );
                       },
+                    )
+                  : tasks.isNotEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      children: [
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.45,
+                          child: Center(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.search_off,
+                                    size: 76,
+                                    color: MyColors.primaryColor,
+                                  ),
+                                  const SizedBox(height: 18),
+                                  const Text(
+                                    'No tasks match your search or filter.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Try a different keyword or clear the filter chips.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.withValues(alpha: 0.7),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     )
                   : ListView(
                       physics: const AlwaysScrollableScrollPhysics(

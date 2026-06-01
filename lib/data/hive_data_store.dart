@@ -235,10 +235,7 @@ class HiveDataStore {
   }
 
   /// Reset user password using email
-  Future<bool> resetPassword({
-    required String email,
-    required String newPassword,
-  }) async {
+  Future<bool> resetPassword({required String email}) async {
     try {
       final signInMethods = await _auth.fetchSignInMethodsForEmail(email);
       if (signInMethods.isEmpty) {

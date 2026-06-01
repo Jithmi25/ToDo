@@ -70,10 +70,6 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _showForgotPasswordDialog() async {
     final resetFormKey = GlobalKey<FormState>();
     final resetEmailController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
-    bool obscureNewPassword = true;
-    bool obscureConfirmPassword = true;
     bool isResetting = false;
 
     await showDialog<void>(
@@ -83,6 +79,7 @@ class _LoginViewState extends State<LoginView> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: const Text('Forgot Password'),
+              contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
               content: Form(
                 key: resetFormKey,
                 child: SingleChildScrollView(
@@ -99,53 +96,9 @@ class _LoginViewState extends State<LoginView> {
                         validator: LoginValidator.validateEmail,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
-                        controller: newPasswordController,
-                        obscureText: obscureNewPassword,
-                        decoration: InputDecoration(
-                          labelText: 'New Password',
-                          prefixIcon: const Icon(CupertinoIcons.lock),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              obscureNewPassword
-                                  ? CupertinoIcons.eye_slash
-                                  : CupertinoIcons.eye,
-                            ),
-                            onPressed: () {
-                              setDialogState(() {
-                                obscureNewPassword = !obscureNewPassword;
-                              });
-                            },
-                          ),
-                        ),
-                        validator: LoginValidator.validatePassword,
-                      ),
-                      const SizedBox(height: 12),
-                      TextFormField(
-                        controller: confirmPasswordController,
-                        obscureText: obscureConfirmPassword,
-                        decoration: InputDecoration(
-                          labelText: 'Confirm Password',
-                          prefixIcon: const Icon(CupertinoIcons.lock),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              obscureConfirmPassword
-                                  ? CupertinoIcons.eye_slash
-                                  : CupertinoIcons.eye,
-                            ),
-                            onPressed: () {
-                              setDialogState(() {
-                                obscureConfirmPassword =
-                                    !obscureConfirmPassword;
-                              });
-                            },
-                          ),
-                        ),
-                        validator: (value) =>
-                            LoginValidator.validateConfirmPassword(
-                              value,
-                              newPasswordController.text,
-                            ),
+                      Text(
+                        'A password reset link will be sent to this email address.',
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                     ],
                   ),
@@ -180,7 +133,6 @@ class _LoginViewState extends State<LoginView> {
 
                           final success = await dataStore.resetPassword(
                             email: resetEmailController.text.trim(),
-                            newPassword: newPasswordController.text,
                           );
 
                           if (!mounted) return;
@@ -193,15 +145,13 @@ class _LoginViewState extends State<LoginView> {
                             scaffoldMessenger.showSnackBar(
                               const SnackBar(
                                 content: Text(
-                                  'Password reset email sent. Check your inbox.',
+                                  'Password reset email sent. Check your inbox to continue.',
                                 ),
                                 backgroundColor: Colors.green,
                               ),
                             );
                           } else {
-                            setDialogState(() {
-                              isResetting = false;
-                            });
+                            setDialogState(() => isResetting = false);
                             scaffoldMessenger.showSnackBar(
                               const SnackBar(
                                 content: Text(
@@ -228,8 +178,6 @@ class _LoginViewState extends State<LoginView> {
     );
 
     resetEmailController.dispose();
-    newPasswordController.dispose();
-    confirmPasswordController.dispose();
   }
 
   @override
