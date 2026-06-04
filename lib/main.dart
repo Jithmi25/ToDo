@@ -11,6 +11,7 @@ import 'firebase_options.dart';
 import 'view/home/home_view.dart';
 import 'view/auth/login_view.dart';
 import 'view/auth/signup_view.dart';
+import 'view/not_found/not_found_view.dart';
 
 Future<void> main() async {
   // Ensure Flutter binding is initialized before plugins
@@ -40,6 +41,8 @@ class MyApp extends StatelessWidget {
           '/signup': (context) => const SignupView(),
           '/home': (context) => const HomeView(),
         },
+        onUnknownRoute: (settings) =>
+            MaterialPageRoute(builder: (context) => const NotFoundView()),
       ),
     );
   }
