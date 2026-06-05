@@ -32,6 +32,8 @@ class _HomeViewState extends State<HomeView> {
   bool _didInitConnectionCheck = false;
   String _searchQuery = '';
   TaskListFilter _taskListFilter = TaskListFilter.all;
+  late ScrollController _scrollController;
+  bool _showScrollToTop = false;
 
   @override
   void didChangeDependencies() {
@@ -42,6 +44,27 @@ class _HomeViewState extends State<HomeView> {
       ).dataStore.checkFirebaseConnection();
       _didInitConnectionCheck = true;
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      final shouldShow = _scrollController.offset > 300;
+      if (shouldShow != _showScrollToTop) {
+        setState(() {
+          _showScrollToTop = shouldShow;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(() {});
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _refreshConnectionStatus(BaseWidget base) async {
@@ -136,7 +159,31 @@ class _HomeViewState extends State<HomeView> {
           backgroundColor: Colors.white,
 
           /// Floating Action Button
-          floatingActionButton: const FAB(),
+          floatingActionButton: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedScale(
+                scale: _showScrollToTop ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 180),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 10.0),
+                  child: FloatingActionButton(
+                    heroTag: 'scrollTop',
+                    mini: true,
+                    onPressed: () {
+                      _scrollController.animateTo(
+                        0,
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeOut,
+                      );
+                    },
+                    child: const Icon(Icons.arrow_upward),
+                  ),
+                ),
+              ),
+              const FAB(),
+            ],
+          ),
 
           /// Body
           body: SliderDrawer(
@@ -363,8 +410,9 @@ class _HomeViewState extends State<HomeView> {
             child: RefreshIndicator(
               onRefresh: () => _handleRefresh(base),
               child: visibleTasks.isNotEmpty
-                  ? ListView.builder(
+                    ? ListView.builder(
                       physics: const BouncingScrollPhysics(),
+                      controller: _scrollController,
                       padding: const EdgeInsets.only(top: 16, bottom: 80),
                       itemCount: visibleTasks.length,
                       itemBuilder: (BuildContext context, int index) {
@@ -434,6 +482,7 @@ class _HomeViewState extends State<HomeView> {
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: BouncingScrollPhysics(),
                       ),
+                      controller: _scrollController,
                       children: [
                         SizedBox(
                           height: MediaQuery.of(context).size.height * 0.45,
@@ -477,6 +526,7 @@ class _HomeViewState extends State<HomeView> {
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: BouncingScrollPhysics(),
                       ),
+                      controller: _scrollController,
                       children: [
                         SizedBox(
                           height: MediaQuery.of(context).size.height * 0.45,
