@@ -26,6 +26,38 @@ class HomeView extends StatefulWidget {
   _HomeViewState createState() => _HomeViewState();
 }
 
+/// Show confirmation and clear all tasks
+void deleteAllTask(BuildContext context) async {
+  final shouldDelete = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) {
+      return AlertDialog(
+        title: const Text('Delete All Tasks'),
+        content: const Text('Are you sure you want to delete all tasks?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (shouldDelete == true) {
+    await BaseWidget.of(context).dataStore.clearAllTasks();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('All tasks deleted')));
+    }
+  }
+}
+
 class _HomeViewState extends State<HomeView> {
   GlobalKey<SliderDrawerState> dKey = GlobalKey<SliderDrawerState>();
   late Future<FirebaseConnectionStatus> _firebaseConnectionFuture;
@@ -34,6 +66,7 @@ class _HomeViewState extends State<HomeView> {
   TaskListFilter _taskListFilter = TaskListFilter.all;
   late ScrollController _scrollController;
   bool _showScrollToTop = false;
+  late VoidCallback _scrollListener;
 
   @override
   void didChangeDependencies() {
@@ -50,19 +83,20 @@ class _HomeViewState extends State<HomeView> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _scrollController.addListener(() {
+    _scrollListener = () {
       final shouldShow = _scrollController.offset > 300;
       if (shouldShow != _showScrollToTop) {
         setState(() {
           _showScrollToTop = shouldShow;
         });
       }
-    });
+    };
+    _scrollController.addListener(_scrollListener);
   }
 
   @override
   void dispose() {
-    _scrollController.removeListener(() {});
+    _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
     super.dispose();
   }
@@ -80,14 +114,47 @@ class _HomeViewState extends State<HomeView> {
   }
 
   /// Checking Done Tasks
-  int checkDoneTask(List<Task> task) {
-                          child: TaskWidget(task: task),
-    for (Task doneTasks in task) {
-      if (doneTasks.isCompleted) {
-        i++;
-      }
+  int checkDoneTask(List<Task> tasks) {
+    int completed = 0;
+    for (final t in tasks) {
+      if (t.isCompleted) completed++;
     }
-    return i;
+    return completed;
+  }
+
+  int valueOfTheIndicator(List<Task> tasks) {
+    return tasks.isEmpty ? 1 : tasks.length;
+  }
+
+  void _updateSearchQuery(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
+  }
+
+  void _updateFilter(TaskListFilter filter) {
+    setState(() {
+      _taskListFilter = filter;
+    });
+  }
+
+  List<Task> _filterTasks(List<Task> tasks) {
+    var filtered = tasks.where((t) {
+      if (_taskListFilter == TaskListFilter.completed) return t.isCompleted;
+      if (_taskListFilter == TaskListFilter.pending) return !t.isCompleted;
+      return true;
+    }).toList();
+
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      filtered = filtered.where((t) {
+        return t.title.toLowerCase().contains(q) ||
+            t.subtitle.toLowerCase().contains(q) ||
+            t.category.toLowerCase().contains(q);
+      }).toList();
+    }
+
+    return filtered;
   }
 
                         SizedBox(
