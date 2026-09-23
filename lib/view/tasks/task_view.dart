@@ -1,27 +1,21 @@
-// ignore_for_file: prefer_typing_uninitialized_variables
-
 import 'package:flutter/material.dart';
-import 'package:flutter_datetime_picker_plus/flutter_datetime_picker_plus.dart';
 import 'package:intl/intl.dart';
 
-///
 import '../../main.dart';
 import '../../models/task.dart';
 import '../../utils/colors.dart';
-import '../../utils/constanst.dart';
 import '../../utils/strings.dart';
 
-// ignore: must_be_immutable
 class TaskView extends StatefulWidget {
-  TaskView({
+  const TaskView({
     super.key,
-    required this.taskControllerForTitle,
-    required this.taskControllerForSubtitle,
-    required this.task,
+    this.taskControllerForTitle,
+    this.taskControllerForSubtitle,
+    this.task,
   });
 
-  TextEditingController? taskControllerForTitle;
-  TextEditingController? taskControllerForSubtitle;
+  final TextEditingController? taskControllerForTitle;
+  final TextEditingController? taskControllerForSubtitle;
   final Task? task;
 
   @override
@@ -29,46 +23,237 @@ class TaskView extends StatefulWidget {
 }
 
 class _TaskViewState extends State<TaskView> {
-  dynamic title;
-  dynamic subtitle;
-  DateTime? time;
-  DateTime? date;
-  static const List<String> _categories = [
-    'General',
-    'Work',
-    'Personal',
-    'Study',
-    'Shopping',
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _titleController;
+  late TextEditingController _subtitleController;
+
+  late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
+  late String _selectedCategory;
+  late String _selectedPriority;
+  bool _isLoading = false;
+
+  bool get isEditing => widget.task != null;
+
+  static const List<Map<String, dynamic>> _categories = [
+    {
+      'name': 'General',
+      'icon': Icons.folder_outlined,
+      'color': Color(0xff4568dc),
+    },
+    {
+      'name': 'Work',
+      'icon': Icons.business_center_outlined,
+      'color': Color(0xff2563eb),
+    },
+    {
+      'name': 'Personal',
+      'icon': Icons.person_outline,
+      'color': Color(0xff7c3aed),
+    },
+    {
+      'name': 'Study',
+      'icon': Icons.school_outlined,
+      'color': Color(0xff059669),
+    },
+    {
+      'name': 'Shopping',
+      'icon': Icons.shopping_bag_outlined,
+      'color': Color(0xffd97706),
+    },
+    {
+      'name': 'Health',
+      'icon': Icons.favorite_border,
+      'color': Color(0xffdc2626),
+    },
   ];
-  String selectedCategory = 'General';
+
+  static const List<Map<String, dynamic>> _priorities = [
+    {'name': 'Low', 'color': Color(0xff10b981)},
+    {'name': 'Medium', 'color': Color(0xfff59e0b)},
+    {'name': 'High', 'color': Color(0xffef4444)},
+  ];
 
   @override
   void initState() {
     super.initState();
-    selectedCategory = widget.task?.category ?? 'General';
-    title = widget.taskControllerForTitle?.text;
-    subtitle = widget.taskControllerForSubtitle?.text;
+    _titleController = TextEditingController(
+      text: widget.task?.title ?? widget.taskControllerForTitle?.text ?? '',
+    );
+    _subtitleController = TextEditingController(
+      text:
+          widget.task?.subtitle ?? widget.taskControllerForSubtitle?.text ?? '',
+    );
+
+    _selectedDate = widget.task?.createdAtDate ?? DateTime.now();
+    _selectedTime = widget.task != null
+        ? TimeOfDay.fromDateTime(widget.task!.createdAtTime)
+        : TimeOfDay.now();
+
+    _selectedCategory = widget.task?.category ?? 'General';
+    _selectedPriority = widget.task?.priority ?? 'Medium';
   }
 
-  Future<void> _confirmDeleteTask() async {
-    if (widget.task == null) {
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _subtitleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final firstDate = DateTime(now.year - 1);
+    final lastDate = DateTime(now.year + 10);
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: MyColors.primaryColor),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: MyColors.primaryColor),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedTime = picked;
+      });
+    }
+  }
+
+  DateTime _combineDateAndTime(DateTime date, TimeOfDay time) {
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  Future<void> _saveTask() async {
+    if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final combinedDateTime = _combineDateAndTime(
+        _selectedDate,
+        _selectedTime,
+      );
+      final dataStore = BaseWidget.of(context).dataStore;
+
+      if (isEditing) {
+        final updatedTask = widget.task!;
+        updatedTask.title = _titleController.text.trim();
+        updatedTask.subtitle = _subtitleController.text.trim();
+        updatedTask.category = _selectedCategory;
+        updatedTask.priority = _selectedPriority;
+        updatedTask.createdAtDate = _selectedDate;
+        updatedTask.createdAtTime = combinedDateTime;
+
+        await dataStore.updateTask(task: updatedTask);
+
+        if (widget.taskControllerForTitle != null) {
+          widget.taskControllerForTitle!.text = updatedTask.title;
+        }
+        if (widget.taskControllerForSubtitle != null) {
+          widget.taskControllerForSubtitle!.text = updatedTask.subtitle;
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Task updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pop();
+        }
+      } else {
+        final newTask = Task.create(
+          title: _titleController.text.trim(),
+          subtitle: _subtitleController.text.trim(),
+          category: _selectedCategory,
+          priority: _selectedPriority,
+          createdAtDate: _selectedDate,
+          createdAtTime: combinedDateTime,
+        );
+
+        await dataStore.addTask(task: newTask);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Task added successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save task: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    if (widget.task == null) return;
 
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text(MyString.areYouSure),
-          content: const Text('This action will remove the task.'),
+          content: const Text('Are you sure you want to delete this task?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               child: const Text('Cancel'),
             ),
             TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text(MyString.deleteTask),
+              child: const Text('Delete'),
             ),
           ],
         );
@@ -76,533 +261,335 @@ class _TaskViewState extends State<TaskView> {
     );
 
     if (shouldDelete == true) {
-      deleteTask();
+      if (!mounted) return;
+      await BaseWidget.of(context).dataStore.deleteTask(task: widget.task!);
       if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Task deleted')));
         Navigator.of(context).pop();
       }
     }
-  }
-
-  /// Show Selected Time As String Format
-  String showTime(DateTime? time) {
-    if (widget.task?.createdAtTime == null) {
-      if (time == null) {
-        return DateFormat('hh:mm a').format(DateTime.now()).toString();
-      } else {
-        return DateFormat('hh:mm a').format(time).toString();
-      }
-    } else {
-      return DateFormat(
-        'hh:mm a',
-      ).format(widget.task!.createdAtTime).toString();
-    }
-  }
-
-  /// Show Selected Time As DateTime Format
-  DateTime showTimeAsDateTime(DateTime? time) {
-    if (widget.task?.createdAtTime == null) {
-      if (time == null) {
-        return DateTime.now();
-      } else {
-        return time;
-      }
-    } else {
-      return widget.task!.createdAtTime;
-    }
-  }
-
-  /// Show Selected Date As String Format
-  String showDate(DateTime? date) {
-    if (widget.task?.createdAtDate == null) {
-      if (date == null) {
-        return DateFormat.yMMMEd().format(DateTime.now()).toString();
-      } else {
-        return DateFormat.yMMMEd().format(date).toString();
-      }
-    } else {
-      return DateFormat.yMMMEd().format(widget.task!.createdAtDate).toString();
-    }
-  }
-
-  // Show Selected Date As DateTime Format
-  DateTime showDateAsDateTime(DateTime? date) {
-    if (widget.task?.createdAtDate == null) {
-      if (date == null) {
-        return DateTime.now();
-      } else {
-        return date;
-      }
-    } else {
-      return widget.task!.createdAtDate;
-    }
-  }
-
-  /// If any Task Already exist return TRUE otherWise FALSE
-  bool isTaskAlreadyExistBool() {
-    if (widget.taskControllerForTitle?.text == null &&
-        widget.taskControllerForSubtitle?.text == null) {
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  /// If any task already exist app will update it otherwise the app will add a new task
-  Future<void> isTaskAlreadyExistUpdateTask() async {
-    if (widget.taskControllerForTitle?.text != null &&
-        widget.taskControllerForSubtitle?.text != null) {
-      try {
-        final updatedTitle = title ?? widget.taskControllerForTitle?.text ?? '';
-        final updatedSubtitle =
-            subtitle ?? widget.taskControllerForSubtitle?.text ?? '';
-
-        widget.taskControllerForTitle?.text = updatedTitle;
-        widget.taskControllerForSubtitle?.text = updatedSubtitle;
-        widget.task?.title = updatedTitle;
-        widget.task?.subtitle = updatedSubtitle;
-        widget.task?.category = selectedCategory;
-
-        // widget.task?.createdAtDate = date!;
-        // widget.task?.createdAtTime = time!;
-
-        if (widget.task != null) {
-          await BaseWidget.of(context).dataStore.updateTask(task: widget.task!);
-        }
-        Navigator.of(context).pop();
-      } catch (error) {
-        nothingEnterOnUpdateTaskMode(context);
-      }
-    } else {
-      if (title != null && subtitle != null) {
-        final task = Task.create(
-          title: title,
-          createdAtTime: time,
-          createdAtDate: date,
-          subtitle: subtitle,
-          category: selectedCategory,
-        );
-        await BaseWidget.of(context).dataStore.addTask(task: task);
-        Navigator.of(context).pop();
-      } else {
-        emptyFieldsWarning(context);
-      }
-    }
-  }
-
-  /// Delete Selected Task
-  Future<void> deleteTask() async {
-    if (widget.task == null) return;
-    await BaseWidget.of(context).dataStore.dalateTask(task: widget.task!);
   }
 
   @override
   Widget build(BuildContext context) {
-    var textTheme = Theme.of(context).textTheme;
-    return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: MyAppBar(
-          showDelete: !isTaskAlreadyExistBool(),
-          onDelete: _confirmDeleteTask,
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          isEditing ? 'Edit Task' : 'New Task',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        body: SizedBox(
-          width: double.infinity,
-          height: double.infinity,
-          child: Center(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  /// new / update Task Text
-                  _buildTopText(textTheme),
-
-                  /// Middle Two TextFileds, Time And Date Selection Box
-                  _buildMiddleTextFieldsANDTimeAndDateSelection(
-                    context,
-                    textTheme,
-                  ),
-
-                  /// All Bottom Buttons
-                  _buildBottomButtons(context),
-                ],
-              ),
+        actions: [
+          if (isEditing)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              tooltip: 'Delete task',
+              onPressed: _confirmDelete,
             ),
-          ),
-        ),
+        ],
       ),
-    );
-  }
-
-  /// All Bottom Buttons
-  Padding _buildBottomButtons(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        mainAxisAlignment: isTaskAlreadyExistBool()
-            ? MainAxisAlignment.center
-            : MainAxisAlignment.spaceEvenly,
-        children: [
-          isTaskAlreadyExistBool()
-              ? Container()
-              /// Delete Task Button
-              : Container(
-                  width: 150,
-                  height: 55,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: MyColors.primaryColor, width: 2),
-                    borderRadius: BorderRadius.circular(15),
+      body: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            children: [
+              // Task Title
+              Text(
+                'Task Title',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _titleController,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: 'What needs to be done?',
+                  prefixIcon: const Icon(Icons.check_circle_outline),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: MaterialButton(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a task title';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Task Note / Description
+              Text(
+                'Note / Details',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _subtitleController,
+                textCapitalization: TextCapitalization.sentences,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Add notes, links, or subtasks...',
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.only(bottom: 40),
+                    child: Icon(Icons.notes),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Category Selector
+              Text(
+                'Category',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _categories.map((cat) {
+                  final isSelected = _selectedCategory == cat['name'];
+                  final Color catColor = cat['color'] as Color;
+                  return ChoiceChip(
+                    avatar: Icon(
+                      cat['icon'] as IconData,
+                      size: 18,
+                      color: isSelected ? Colors.white : catColor,
                     ),
-                    minWidth: 150,
-                    height: 55,
-                    onPressed: () {
-                      deleteTask().then((_) => Navigator.pop(context));
+                    label: Text(
+                      cat['name'] as String,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: catColor,
+                    backgroundColor: catColor.withValues(alpha: 0.1),
+                    onSelected: (selected) {
+                      if (selected) {
+                        setState(
+                          () => _selectedCategory = cat['name'] as String,
+                        );
+                      }
                     },
-                    color: Colors.white,
-                    child: const Row(
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+
+              // Priority Selector
+              Text(
+                'Priority',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: _priorities.map((p) {
+                  final isSelected = _selectedPriority == p['name'];
+                  final Color pColor = p['color'] as Color;
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: InkWell(
+                        onTap: () {
+                          setState(
+                            () => _selectedPriority = p['name'] as String,
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? pColor
+                                : pColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected ? pColor : Colors.grey.shade300,
+                              width: isSelected ? 2 : 1,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            p['name'] as String,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : pColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+
+              // Date & Time Selectors
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.close, color: MyColors.primaryColor),
-                        SizedBox(width: 5),
                         Text(
-                          MyString.deleteTask,
-                          style: TextStyle(color: MyColors.primaryColor),
+                          'Due Date',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: _pickDate,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_today,
+                                  size: 18,
+                                  color: MyColors.primaryColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    DateFormat.yMMMd().format(_selectedDate),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
-
-          /// Add or Update Task Button
-          MaterialButton(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            minWidth: 150,
-            height: 55,
-            onPressed: () {
-              isTaskAlreadyExistUpdateTask();
-            },
-            color: MyColors.primaryColor,
-            child: Text(
-              isTaskAlreadyExistBool()
-                  ? MyString.addTaskString
-                  : MyString.updateTaskString,
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Middle Two TextFileds And Time And Date Selection Box
-  SizedBox _buildMiddleTextFieldsANDTimeAndDateSelection(
-    BuildContext context,
-    TextTheme textTheme,
-  ) {
-    return SizedBox(
-      width: double.infinity,
-      height: 620,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          /// Title of TextFiled
-          Padding(
-            padding: const EdgeInsets.only(left: 30),
-            child: Text(
-              MyString.titleOfTitleTextField,
-              style: textTheme.headlineMedium,
-            ),
-          ),
-
-          /// Title TextField
-          Container(
-            width: MediaQuery.of(context).size.width,
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: ListTile(
-              title: TextFormField(
-                controller: widget.taskControllerForTitle,
-                maxLines: 6,
-                cursorHeight: 60,
-                style: const TextStyle(color: Colors.black),
-                decoration: InputDecoration(
-                  enabledBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: UnderlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                ),
-                onFieldSubmitted: (value) {
-                  title = value;
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-                onChanged: (value) {
-                  title = value;
-                },
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          /// Note TextField
-          Container(
-            width: MediaQuery.of(context).size.width,
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: ListTile(
-              title: TextFormField(
-                controller: widget.taskControllerForSubtitle,
-                style: const TextStyle(color: Colors.black),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(
-                    Icons.bookmark_border,
-                    color: Colors.grey,
-                  ),
-                  border: InputBorder.none,
-                  counter: Container(),
-                  hintText: MyString.addNote,
-                ),
-                onFieldSubmitted: (value) {
-                  subtitle = value;
-                },
-                onChanged: (value) {
-                  subtitle = value;
-                },
-              ),
-            ),
-          ),
-
-          Container(
-            margin: const EdgeInsets.fromLTRB(20, 8, 20, 10),
-            child: DropdownButtonFormField<String>(
-              initialValue: selectedCategory,
-              decoration: InputDecoration(
-                labelText: MyString.categoryString,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: MyColors.primaryColor),
-                ),
-              ),
-              items: _categories
-                  .map(
-                    (category) => DropdownMenuItem<String>(
-                      value: category,
-                      child: Text(category),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  selectedCategory = value;
-                });
-              },
-            ),
-          ),
-
-          /// Time Picker
-          GestureDetector(
-            onTap: () {
-              DatePicker.showTimePicker(
-                context,
-                showTitleActions: true,
-                showSecondsColumn: false,
-                onChanged: (_) {},
-                onConfirm: (selectedTime) {
-                  setState(() {
-                    if (widget.task?.createdAtTime == null) {
-                      time = selectedTime;
-                    } else {
-                      widget.task!.createdAtTime = selectedTime;
-                    }
-                  });
-
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-                currentTime: showTimeAsDateTime(time),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(20, 20, 20, 10),
-              width: double.infinity,
-              height: 55,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey.shade300, width: 1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 10),
-                    child: Text(
-                      MyString.timeString,
-                      style: textTheme.headlineSmall,
-                    ),
-                  ),
-                  Expanded(child: Container()),
-                  Container(
-                    margin: const EdgeInsets.only(right: 10),
-                    width: 80,
-                    height: 35,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: Colors.grey.shade100,
-                    ),
-                    child: Center(
-                      child: Text(showTime(time), style: textTheme.titleSmall),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Due Time',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        InkWell(
+                          onTap: _pickTime,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.access_time,
+                                  size: 18,
+                                  color: MyColors.primaryColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _selectedTime.format(context),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
+              const SizedBox(height: 40),
 
-          /// Date Picker
-          GestureDetector(
-            onTap: () {
-              DatePicker.showDatePicker(
-                context,
-                showTitleActions: true,
-                minTime: DateTime.now(),
-                maxTime: DateTime(2030, 3, 5),
-                onChanged: (_) {},
-                onConfirm: (selectedDate) {
-                  setState(() {
-                    if (widget.task?.createdAtDate == null) {
-                      date = selectedDate;
-                    } else {
-                      widget.task!.createdAtDate = selectedDate;
-                    }
-                  });
-                  FocusManager.instance.primaryFocus?.unfocus();
-                },
-                currentTime: showDateAsDateTime(date),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-              width: double.infinity,
-              height: 55,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: Colors.grey.shade300, width: 1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(left: 10),
-                    child: Text(
-                      MyString.dateString,
-                      style: textTheme.headlineSmall,
+              // Submit Button
+              SizedBox(
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _saveTask,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: MyColors.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
+                    elevation: 3,
                   ),
-                  Expanded(child: Container()),
-                  Container(
-                    margin: const EdgeInsets.only(right: 10),
-                    width: 140,
-                    height: 35,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: Colors.grey.shade100,
-                    ),
-                    child: Center(
-                      child: Text(showDate(date), style: textTheme.titleSmall),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// new / update Task Text
-  SizedBox _buildTopText(TextTheme textTheme) {
-    return SizedBox(
-      width: double.infinity,
-      height: 100,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(width: 70, child: Divider(thickness: 2)),
-          RichText(
-            text: TextSpan(
-              text: isTaskAlreadyExistBool()
-                  ? MyString.addNewTask
-                  : MyString.updateCurrentTask,
-              style: textTheme.titleLarge,
-              children: const [
-                TextSpan(
-                  text: MyString.taskStrnig,
-                  style: TextStyle(fontWeight: FontWeight.w400),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 70, child: Divider(thickness: 2)),
-        ],
-      ),
-    );
-  }
-}
-
-/// AppBar
-class MyAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const MyAppBar({super.key, this.showDelete = false, this.onDelete});
-
-  final bool showDelete;
-  final VoidCallback? onDelete;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 150,
-      child: Padding(
-        padding: const EdgeInsets.only(top: 20),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 20),
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Icon(Icons.arrow_back_ios_new_rounded, size: 50),
-              ),
-            ),
-            if (showDelete)
-              Padding(
-                padding: const EdgeInsets.only(right: 20),
-                child: IconButton(
-                  onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline, size: 32),
-                  color: MyColors.primaryColor,
-                  tooltip: MyString.deleteTask,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          isEditing ? 'Save Changes' : 'Create Task',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
-          ],
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
   }
-
-  @override
-  Size get preferredSize => const Size.fromHeight(100);
 }

@@ -13,6 +13,7 @@ class Task extends HiveObject {
     required this.createdAtDate,
     required this.isCompleted,
     required this.category,
+    this.priority = 'Medium',
   });
 
   /// ID
@@ -43,6 +44,10 @@ class Task extends HiveObject {
   @HiveField(6)
   String category;
 
+  /// PRIORITY (Low, Medium, High)
+  @HiveField(7)
+  String priority;
+
   /// create new Task
   factory Task.create({
     required String? title,
@@ -50,6 +55,7 @@ class Task extends HiveObject {
     String? category,
     DateTime? createdAtTime,
     DateTime? createdAtDate,
+    String? priority,
   }) => Task(
     id: const Uuid().v1(),
     title: title ?? "",
@@ -58,5 +64,6 @@ class Task extends HiveObject {
     isCompleted: false,
     createdAtDate: createdAtDate ?? DateTime.now(),
     category: category ?? "General",
+    priority: priority ?? "Medium",
   );
 }

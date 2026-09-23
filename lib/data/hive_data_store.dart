@@ -103,6 +103,20 @@ class HiveDataStore {
     await batch.commit();
   }
 
+  Future<void> clearCompletedTasks() async {
+    final tasksRef = _tasksRef;
+    if (tasksRef == null) {
+      return;
+    }
+
+    final snapshot = await tasksRef.where('isCompleted', isEqualTo: true).get();
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
   // ===== User/Auth Methods =====
 
   /// Register a new user
@@ -271,6 +285,23 @@ class HiveDataStore {
     }
   }
 
+  /// Update user profile name
+  Future<bool> updateUserName({required String name}) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+      await user.updateDisplayName(name);
+      await _firestore.collection(usersCollection).doc(user.uid).set({
+        'fullName': name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      return true;
+    } catch (e) {
+      debugPrint('Error updating user name: $e');
+      return false;
+    }
+  }
+
   /// Logout user
   Future<void> logoutUser() async {
     try {
@@ -328,6 +359,7 @@ class HiveDataStore {
       'createdAtDate': Timestamp.fromDate(task.createdAtDate),
       'isCompleted': task.isCompleted,
       'category': task.category,
+      'priority': task.priority,
     };
   }
 
@@ -348,6 +380,7 @@ class HiveDataStore {
           : DateTime.now(),
       isCompleted: (data['isCompleted'] as bool?) ?? false,
       category: (data['category'] as String?) ?? 'General',
+      priority: (data['priority'] as String?) ?? 'Medium',
     );
   }
 }

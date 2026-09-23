@@ -2,236 +2,295 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-///
 import '../../../main.dart';
 import '../../../models/task.dart';
 import '../../../utils/colors.dart';
 import '../../../view/tasks/task_view.dart';
 
-class TaskWidget extends StatefulWidget {
+class TaskWidget extends StatelessWidget {
   const TaskWidget({super.key, required this.task});
 
   final Task task;
 
-  @override
-  // ignore: library_private_types_in_public_api
-  _TaskWidgetState createState() => _TaskWidgetState();
-}
+  static const Map<String, Color> _categoryColors = {
+    'General': Color(0xff4568dc),
+    'Work': Color(0xff2563eb),
+    'Personal': Color(0xff7c3aed),
+    'Study': Color(0xff059669),
+    'Shopping': Color(0xffd97706),
+    'Health': Color(0xffdc2626),
+  };
 
-class _TaskWidgetState extends State<TaskWidget> {
-  TextEditingController taskControllerForTitle = TextEditingController();
-  TextEditingController taskControllerForSubtitle = TextEditingController();
-  @override
-  void initState() {
-    super.initState();
-    taskControllerForTitle.text = widget.task.title;
-    taskControllerForSubtitle.text = widget.task.subtitle;
-  }
+  static const Map<String, IconData> _categoryIcons = {
+    'General': Icons.folder_outlined,
+    'Work': Icons.business_center_outlined,
+    'Personal': Icons.person_outline,
+    'Study': Icons.school_outlined,
+    'Shopping': Icons.shopping_bag_outlined,
+    'Health': Icons.favorite_border,
+  };
 
-  @override
-  void dispose() {
-    taskControllerForTitle.dispose();
-    taskControllerForSubtitle.dispose();
-    super.dispose();
+  static const Map<String, Color> _priorityColors = {
+    'Low': Color(0xff10b981),
+    'Medium': Color(0xfff59e0b),
+    'High': Color(0xffef4444),
+  };
+
+  bool get _isOverdue {
+    if (task.isCompleted) return false;
+    final now = DateTime.now();
+    final taskDateTime = DateTime(
+      task.createdAtDate.year,
+      task.createdAtDate.month,
+      task.createdAtDate.day,
+      task.createdAtTime.hour,
+      task.createdAtTime.minute,
+    );
+    return taskDateTime.isBefore(now);
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final catColor = _categoryColors[task.category] ?? MyColors.primaryColor;
+    final catIcon = _categoryIcons[task.category] ?? Icons.folder_outlined;
+    final priorityColor =
+        _priorityColors[task.priority] ?? const Color(0xfff59e0b);
+
+    return InkWell(
       onTap: () {
         Navigator.push(
           context,
-          CupertinoPageRoute(
-            builder: (ctx) => TaskView(
-              taskControllerForTitle: taskControllerForTitle,
-              taskControllerForSubtitle: taskControllerForSubtitle,
-              task: widget.task,
-            ),
-          ),
+          CupertinoPageRoute(builder: (ctx) => TaskView(task: task)),
         );
       },
-
-      /// Main Card
+      borderRadius: BorderRadius.circular(16),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 600),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: widget.task.isCompleted
-              ? const Color.fromARGB(154, 119, 144, 229).withValues(alpha: 0.2)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          color: task.isCompleted ? Colors.grey.shade50 : Colors.white,
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: widget.task.isCompleted
-                ? MyColors.primaryColor.withValues(alpha: 0.3)
-                : Colors.grey.withValues(alpha: 0.1),
-            width: 1.5,
+            color: task.isCompleted
+                ? Colors.grey.shade200
+                : (_isOverdue
+                      ? Colors.red.withValues(alpha: 0.3)
+                      : Colors.grey.shade200),
+            width: _isOverdue && !task.isCompleted ? 1.5 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              offset: const Offset(0, 2),
-              blurRadius: 8,
-              spreadRadius: 1,
+              color: Colors.black.withValues(alpha: 0.04),
+              offset: const Offset(0, 3),
+              blurRadius: 10,
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          child: Row(
-            children: [
-              /// Check icon with better visual feedback
-              GestureDetector(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Checkbox button
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: GestureDetector(
                 onTap: () async {
-                  widget.task.isCompleted = !widget.task.isCompleted;
-                  await BaseWidget.of(
-                    context,
-                  ).dataStore.updateTask(task: widget.task);
+                  task.isCompleted = !task.isCompleted;
+                  await BaseWidget.of(context).dataStore.updateTask(task: task);
                 },
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 600),
-                  width: 28,
-                  height: 28,
+                  duration: const Duration(milliseconds: 250),
+                  width: 26,
+                  height: 26,
                   decoration: BoxDecoration(
-                    color: widget.task.isCompleted
+                    color: task.isCompleted
                         ? MyColors.primaryColor
-                        : Colors.white,
+                        : Colors.transparent,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: widget.task.isCompleted
+                      color: task.isCompleted
                           ? MyColors.primaryColor
-                          : Colors.grey.withValues(alpha: 0.4),
+                          : Colors.grey.shade400,
                       width: 2,
                     ),
-                    boxShadow: widget.task.isCompleted
-                        ? [
-                            BoxShadow(
-                              color: MyColors.primaryColor.withValues(
-                                alpha: 0.3,
-                              ),
-                              blurRadius: 6,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : [],
                   ),
-                  child: widget.task.isCompleted
+                  child: task.isCompleted
                       ? const Icon(Icons.check, color: Colors.white, size: 16)
                       : null,
                 ),
               ),
-              const SizedBox(width: 14),
+            ),
+            const SizedBox(width: 14),
 
-              /// Task content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    /// Title of Task
+            // Content Section (Title, notes, tags)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title
+                  Text(
+                    task.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: task.isCompleted
+                          ? Colors.grey.shade400
+                          : Colors.black87,
+                      decoration: task.isCompleted
+                          ? TextDecoration.lineThrough
+                          : null,
+                      decorationColor: Colors.grey.shade400,
+                    ),
+                  ),
+                  if (task.subtitle.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     Text(
-                      taskControllerForTitle.text,
+                      task.subtitle,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: widget.task.isCompleted
-                            ? Colors.grey.withValues(alpha: 0.6)
-                            : Colors.black87,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                        decoration: widget.task.isCompleted
-                            ? TextDecoration.lineThrough
-                            : null,
-                        decorationColor: Colors.grey.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-
-                    /// Description of task
-                    Text(
-                      taskControllerForSubtitle.text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: widget.task.isCompleted
-                            ? Colors.grey.withValues(alpha: 0.5)
-                            : Colors.grey.withValues(alpha: 0.7),
-                        fontWeight: FontWeight.w400,
                         fontSize: 13,
-                        decoration: widget.task.isCompleted
+                        color: task.isCompleted
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade600,
+                        decoration: task.isCompleted
                             ? TextDecoration.lineThrough
                             : null,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: MyColors.primaryColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        widget.task.category,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: widget.task.isCompleted
-                              ? Colors.grey.withValues(alpha: 0.65)
-                              : MyColors.primaryColor,
+                  ],
+                  const SizedBox(height: 10),
+
+                  // Metadata Badges (Category, Priority, Overdue)
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      // Category Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: catColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(catIcon, size: 12, color: catColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              task.category,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: catColor,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
 
-              /// Date & Time of Task
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      DateFormat('hh:mm a').format(widget.task.createdAtTime),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: widget.task.isCompleted
-                            ? Colors.grey.withValues(alpha: 0.5)
-                            : MyColors.primaryColor,
+                      // Priority Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: priorityColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          task.priority,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: priorityColor,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      DateFormat.yMMMEd().format(widget.task.createdAtDate),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.grey.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
 
-              /// Delete Button
-              SizedBox(
-                width: 32,
-                child: IconButton(
+                      // Overdue Tag
+                      if (_isOverdue)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                size: 12,
+                                color: Colors.red,
+                              ),
+                              SizedBox(width: 3),
+                              Text(
+                                'Overdue',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Due Date & Time column
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  DateFormat('hh:mm a').format(task.createdAtTime),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _isOverdue
+                        ? Colors.red
+                        : (task.isCompleted
+                              ? Colors.grey.shade400
+                              : MyColors.primaryColor),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  DateFormat.yMMMd().format(task.createdAtDate),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                   icon: Icon(
                     CupertinoIcons.trash,
-                    color: Colors.red.withValues(alpha: 0.7),
-                    size: 20,
+                    size: 18,
+                    color: Colors.grey.shade400,
                   ),
                   onPressed: () async {
-                    // Show confirmation dialog
-                    showCupertinoDialog(
+                    final shouldDelete = await showCupertinoDialog<bool>(
                       context: context,
                       builder: (ctx) => CupertinoAlertDialog(
                         title: const Text('Delete Task'),
@@ -240,38 +299,43 @@ class _TaskWidgetState extends State<TaskWidget> {
                         ),
                         actions: [
                           CupertinoDialogAction(
-                            onPressed: () => Navigator.pop(ctx),
+                            onPressed: () => Navigator.pop(ctx, false),
                             child: const Text('Cancel'),
                           ),
                           CupertinoDialogAction(
                             isDestructiveAction: true,
-                            onPressed: () async {
-                              await BaseWidget.of(
-                                context,
-                              ).dataStore.dalateTask(task: widget.task);
-                              if (ctx.mounted) {
-                                Navigator.pop(ctx);
-                              }
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Task deleted'),
-                                    duration: Duration(seconds: 2),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                            },
+                            onPressed: () => Navigator.pop(ctx, true),
                             child: const Text('Delete'),
                           ),
                         ],
                       ),
                     );
+
+                    if (shouldDelete == true && context.mounted) {
+                      await BaseWidget.of(
+                        context,
+                      ).dataStore.deleteTask(task: task);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('Task deleted'),
+                            action: SnackBarAction(
+                              label: 'Undo',
+                              onPressed: () {
+                                BaseWidget.of(
+                                  context,
+                                ).dataStore.addTask(task: task);
+                              },
+                            ),
+                          ),
+                        );
+                      }
+                    }
                   },
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ),
       ),
     );

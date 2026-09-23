@@ -1,30 +1,47 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:to_do/main.dart';
+import 'package:to_do/models/task.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('Task Model Tests', () {
+    test(
+      'Task.create generates a task with default priority and false completion',
+      () {
+        final task = Task.create(
+          title: 'Complete homework',
+          subtitle: 'Math chapter 4',
+          category: 'Study',
+        );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+        expect(task.title, equals('Complete homework'));
+        expect(task.subtitle, equals('Math chapter 4'));
+        expect(task.category, equals('Study'));
+        expect(task.priority, equals('Medium'));
+        expect(task.isCompleted, isFalse);
+        expect(task.id, isNotEmpty);
+      },
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    test('Task.create supports custom priority and dates', () {
+      final testDate = DateTime(2026, 10, 15);
+      final task = Task.create(
+        title: 'Pay electricity bill',
+        subtitle: 'Due this Friday',
+        category: 'Shopping',
+        priority: 'High',
+        createdAtDate: testDate,
+      );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+      expect(task.priority, equals('High'));
+      expect(task.createdAtDate, equals(testDate));
+      expect(task.category, equals('Shopping'));
+    });
+
+    test('Task completion status can be toggled', () {
+      final task = Task.create(title: 'Walk the dog', subtitle: 'In the park');
+
+      expect(task.isCompleted, isFalse);
+      task.isCompleted = true;
+      expect(task.isCompleted, isTrue);
+    });
   });
 }
