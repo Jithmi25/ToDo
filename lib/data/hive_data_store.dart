@@ -159,28 +159,37 @@ class HiveDataStore {
   /// Sign in or sign up with Google
   Future<User?> signInWithGoogle() async {
     try {
-      final googleSignIn = GoogleSignIn(scopes: ['email']);
-      final googleUser = await googleSignIn.signIn();
+      fb_auth.User? authUser;
 
-      if (googleUser == null) {
-        return null;
+      if (kIsWeb) {
+        final googleProvider = fb_auth.GoogleAuthProvider();
+        googleProvider.addScope('email');
+        final userCredential = await _auth.signInWithPopup(googleProvider);
+        authUser = userCredential.user;
+      } else {
+        final googleSignIn = GoogleSignIn(scopes: ['email']);
+        final googleUser = await googleSignIn.signIn();
+
+        if (googleUser == null) {
+          return null;
+        }
+
+        final googleAuth = await googleUser.authentication;
+        final credential = fb_auth.GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        final userCredential = await _auth.signInWithCredential(credential);
+        authUser = userCredential.user;
       }
-
-      final googleAuth = await googleUser.authentication;
-      final credential = fb_auth.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCredential = await _auth.signInWithCredential(credential);
-      final authUser = userCredential.user;
 
       if (authUser == null) {
         return null;
       }
 
-      final email = authUser.email ?? googleUser.email;
-      final fullName = authUser.displayName ?? googleUser.displayName ?? 'User';
+      final email = authUser.email ?? '';
+      final fullName = authUser.displayName ?? 'User';
 
       await _firestore.collection(usersCollection).doc(authUser.uid).set({
         'email': email,
